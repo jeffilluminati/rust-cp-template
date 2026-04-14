@@ -1,0 +1,316 @@
+//! algebraic traits
+
+/// binary operaion: $T \circ T \to T$
+pub trait Magma {
+    /// type of operands: $T$
+    type T: Clone;
+
+    /// binary operaion: $\circ$
+    fn operate(x: &Self::T, y: &Self::T) -> Self::T;
+
+    fn reverse_operate(x: &Self::T, y: &Self::T) -> Self::T {
+        Self::operate(y, x)
+    }
+
+    fn operate_assign(x: &mut Self::T, y: &Self::T) {
+        *x = Self::operate(x, y);
+    }
+}
+
+/// $\forall a,\forall b,\forall c \in T, (a \circ b) \circ c = a \circ (b \circ c)$
+pub trait Associative: Magma {
+    #[cfg(test)]
+    fn check_associative(a: &Self::T, b: &Self::T, c: &Self::T) -> bool
+    where
+        Self::T: PartialEq,
+    {
+        ({
+            let ab_c = Self::operate(&Self::operate(a, b), c);
+            let a_bc = Self::operate(a, &Self::operate(b, c));
+            ab_c == a_bc
+        }) && ({
+            let ab_c = Self::reverse_operate(c, &Self::reverse_operate(b, a));
+            let a_bc = Self::reverse_operate(&Self::reverse_operate(c, b), a);
+            ab_c == a_bc
+        }) && ({
+            let mut ab_c = a.clone();
+            Self::operate_assign(&mut ab_c, b);
+            Self::operate_assign(&mut ab_c, c);
+            let mut bc = b.clone();
+            Self::operate_assign(&mut bc, c);
+            let mut a_bc = a.clone();
+            Self::operate_assign(&mut a_bc, &bc);
+            ab_c == a_bc
+        })
+    }
+}
+
+/// associative binary operation
+pub trait SemiGroup: Magma + Associative {}
+
+impl<S> SemiGroup for S where S: Magma + Associative {}
+
+/// $\exists e \in T, \forall a \in T, e \circ a = a \circ e = e$
+pub trait Unital: Magma {
+    /// identity element: $e$
+    fn unit() -> Self::T;
+
+    fn is_unit(x: &Self::T) -> bool
+    where
+        Self::T: PartialEq,
+    {
+        x == &Self::unit()
+    }
+
+    fn set_unit(x: &mut Self::T) {
+        *x = Self::unit();
+    }
+
+    #[cfg(test)]
+    fn check_unital(x: &Self::T) -> bool
+    where
+        Self::T: PartialEq,
+    {
+        let u = Self::unit();
+        let xu = Self::operate(x, &u);
+        let ux = Self::operate(&u, x);
+        let mut any = x.clone();
+        Self::set_unit(&mut any);
+        xu == *x && ux == *x && Self::is_unit(&u) && Self::is_unit(&any)
+    }
+}
+
+pub trait ExpBits {
+    type Iter: Iterator<Item = bool>;
+    fn bits(self) -> Self::Iter;
+}
+
+pub trait SignedExpBits {
+    type T: ExpBits;
+
+    fn neg_and_bits(self) -> (bool, Self::T);
+}
+
+pub struct Bits<T> {
+    n: T,
+}
+
+macro_rules! impl_exp_bits_for_uint {
+    ($($t:ty)*) => {
+        $(
+            impl Iterator for Bits<$t> {
+                type Item = bool;
+                fn next(&mut self) -> Option<bool> {
+                    if self.n == 0 {
+                        None
+                    } else {
+                        let bit = (self.n & 1) == 1;
+                        self.n >>= 1;
+                        Some(bit)
+                    }
+                }
+            }
+            impl ExpBits for $t {
+                type Iter = Bits<$t>;
+                fn bits(self) -> Self::Iter {
+                    Bits { n: self }
+                }
+            }
+            impl SignedExpBits for $t {
+                type T = $t;
+                fn neg_and_bits(self) -> (bool, Self::T) {
+                    (false, self)
+                }
+            }
+        )*
+    };
+}
+impl_exp_bits_for_uint!(u8 u16 u32 u64 u128 usize);
+
+macro_rules! impl_signed_exp_bits_for_sint {
+    ($($s:ty, $u:ty;)*) => {
+        $(
+            impl SignedExpBits for $s {
+                type T = $u;
+                fn neg_and_bits(self) -> (bool, Self::T) {
+                    (self < 0, self.unsigned_abs())
+                }
+            }
+        )*
+    };
+}
+impl_signed_exp_bits_for_sint!(i8, u8; i16, u16; i32, u32; i64, u64; i128, u128; isize, usize;);
+
+/// associative binary operation and an identity element
+pub trait Monoid: SemiGroup + Unital {
+    /// binary exponentiation: $x^n = x\circ\ddots\circ x$
+    fn pow<E>(mut x: Self::T, exp: E) -> Self::T
+    where
+        E: ExpBits,
+    {
+        let mut res = Self::unit();
+        for bit in exp.bits() {
+            if bit {
+                res = Self::operate(&res, &x);
+            }
+            x = Self::operate(&x, &x);
+        }
+        res
+    }
+
+    fn fold<I>(iter: I) -> Self::T
+    where
+        I: IntoIterator<Item = Self::T>,
+    {
+        let mut iter = iter.into_iter();
+        if let Some(item) = iter.next() {
+            iter.fold(item, |acc, x| Self::operate(&acc, &x))
+        } else {
+            Self::unit()
+        }
+    }
+}
+
+impl<M> Monoid for M where M: SemiGroup + Unital {}
+
+/// $\exists e \in T, \forall a \in T, \exists b,c \in T, b \circ a = a \circ c = e$
+pub trait Invertible: Magma + Unital {
+    /// $a$ where $a \circ x = e$
+    fn inverse(x: &Self::T) -> Self::T;
+
+    fn rinv_operate(x: &Self::T, y: &Self::T) -> Self::T {
+        Self::operate(x, &Self::inverse(y))
+    }
+
+    fn rinv_operate_assign(x: &mut Self::T, y: &Self::T) {
+        *x = Self::rinv_operate(x, y);
+    }
+
+    #[cfg(test)]
+    fn check_invertible(x: &Self::T) -> bool
+    where
+        Self::T: PartialEq,
+    {
+        let i = Self::inverse(x);
+        ({
+            let xi = Self::operate(x, &i);
+            let ix = Self::operate(&i, x);
+            Self::is_unit(&xi) && Self::is_unit(&ix)
+        }) && ({
+            let ii = Self::inverse(&i);
+            ii == *x
+        }) && ({
+            let mut xi = x.clone();
+            Self::operate_assign(&mut xi, &i);
+            let mut ix = i.clone();
+            Self::operate_assign(&mut ix, x);
+            Self::is_unit(&xi) && Self::is_unit(&ix)
+        }) && ({
+            let mut xi = x.clone();
+            Self::rinv_operate_assign(&mut xi, x);
+            let mut ix = i.clone();
+            Self::rinv_operate_assign(&mut ix, &i);
+            Self::is_unit(&xi) && Self::is_unit(&ix)
+        })
+    }
+}
+
+/// associative binary operation and an identity element and inverse elements
+pub trait Group: Monoid + Invertible {
+    fn signed_pow<E>(x: Self::T, exp: E) -> Self::T
+    where
+        E: SignedExpBits,
+    {
+        let (neg, exp) = E::neg_and_bits(exp);
+        let res = Self::pow(x, exp);
+        if neg { Self::inverse(&res) } else { res }
+    }
+}
+
+impl<G> Group for G where G: Monoid + Invertible {}
+
+/// $\forall a,\forall b \in T, a \circ b = b \circ a$
+pub trait Commutative: Magma {
+    #[cfg(test)]
+    fn check_commutative(a: &Self::T, b: &Self::T) -> bool
+    where
+        Self::T: PartialEq,
+    {
+        Self::operate(a, b) == Self::operate(b, a)
+    }
+}
+
+/// commutative monoid
+pub trait AbelianMonoid: Monoid + Commutative {}
+
+impl<M> AbelianMonoid for M where M: Monoid + Commutative {}
+
+/// commutative group
+pub trait AbelianGroup: Group + Commutative {}
+
+impl<G> AbelianGroup for G where G: Group + Commutative {}
+
+/// $\forall a \in T, a \circ a = a$
+pub trait Idempotent: Magma {
+    #[cfg(test)]
+    fn check_idempotent(a: &Self::T) -> bool
+    where
+        Self::T: PartialEq,
+    {
+        Self::operate(a, a) == *a
+    }
+}
+
+/// idempotent monoid
+pub trait IdempotentMonoid: Monoid + Idempotent {}
+
+impl<M> IdempotentMonoid for M where M: Monoid + Idempotent {}
+
+#[macro_export]
+macro_rules! monoid_fold {
+    ($m:ty) => { <$m as Unital>::unit() };
+    ($m:ty,) => { <$m as Unital>::unit() };
+    ($m:ty, $f:expr) => { $f };
+    ($m:ty, $f:expr, $($ff:expr),*) => { <$m as Magma>::operate(&($f), &monoid_fold!($m, $($ff),*)) };
+}
+
+#[macro_export]
+macro_rules! define_monoid {
+    ($Name:ident, $t:ty, |$x:ident, $y:ident| $op:expr, $unit:expr) => {
+        struct $Name;
+        impl Magma for $Name {
+            type T = $t;
+            fn operate($x: &Self::T, $y: &Self::T) -> Self::T {
+                $op
+            }
+        }
+        impl Unital for $Name {
+            fn unit() -> Self::T {
+                $unit
+            }
+        }
+        impl Associative for $Name {}
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::algebra::operations::{AdditiveOperation, MaxOperation};
+
+    #[test]
+    fn test_monoid_pow() {
+        assert_eq!(AdditiveOperation::pow(2, 0u32), 0);
+        assert_eq!(AdditiveOperation::pow(2, 1u32), 2);
+        assert_eq!(AdditiveOperation::pow(2, 3u32), 6);
+        assert_eq!(AdditiveOperation::pow(2, 4usize), 8);
+    }
+
+    #[test]
+    fn test_monoid_fold() {
+        assert_eq!(monoid_fold!(MaxOperation<u32>,), 0);
+        assert_eq!(monoid_fold!(MaxOperation<u32>, 1), 1);
+        assert_eq!(monoid_fold!(MaxOperation<u32>, 1, 2), 2);
+        assert_eq!(monoid_fold!(MaxOperation<u32>, 0, 1, 5, 2), 5);
+    }
+}

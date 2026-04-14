@@ -35,11 +35,9 @@ BUNDLING_TIME = get_time_str()
 
 
 def check_rust_toolkit():
-    if 'WSL' in platform.uname()[2]:
-        # Use WSL to skip it is a bit hacky
-        print("Skipped rust version enforce")
-        return
-    subprocess.run(["rustup", "default", RUST_VERSION])
+    # Use WSL to skip it is a bit hacky
+    print("Skipped rust version enforce")
+    return
 
 
 def check_valid_cargo_directory():

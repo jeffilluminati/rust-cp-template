@@ -1,0 +1,105 @@
+use super::{
+    Convolve998244353, ConvolveSteps, MInt, MIntConvert, MIntConvolve, MemorizedFactorial,
+    NttReuse, One, PartialIgnoredOrd, Zero, berlekamp_massey, montgomery::MInt998244353,
+};
+use std::{
+    fmt::{self, Debug},
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
+
+#[derive(Default)]
+pub struct FormalPowerSeries<T, C> {
+    pub data: Vec<T>,
+    _marker: PhantomData<C>,
+}
+
+impl<T, C> Debug for FormalPowerSeries<T, C>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.data, f)
+    }
+}
+
+pub type Fps998244353 = FormalPowerSeries<MInt998244353, Convolve998244353>;
+pub type Fps<M> = FormalPowerSeries<MInt<M>, MIntConvolve<M>>;
+
+pub trait FormalPowerSeriesCoefficient:
+    Sized
+    + Clone
+    + Zero
+    + PartialEq
+    + One
+    + From<usize>
+    + From<isize>
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + for<'r> Add<&'r Self, Output = Self>
+    + for<'r> Sub<&'r Self, Output = Self>
+    + for<'r> Mul<&'r Self, Output = Self>
+    + for<'r> Div<&'r Self, Output = Self>
+    + AddAssign<Self>
+    + SubAssign<Self>
+    + MulAssign<Self>
+    + DivAssign<Self>
+    + for<'r> AddAssign<&'r Self>
+    + for<'r> SubAssign<&'r Self>
+    + for<'r> MulAssign<&'r Self>
+    + for<'r> DivAssign<&'r Self>
+    + Neg<Output = Self>
+{
+    type Base: MIntConvert<usize> + MIntConvert<isize>;
+    fn pow(self, exp: usize) -> Self;
+    fn signed_pow(self, exp: isize) -> Self {
+        if exp >= 0 {
+            self.pow(exp as usize)
+        } else {
+            Self::one() / self.pow((-exp) as usize)
+        }
+    }
+    fn memorized_factorial(n: usize) -> MemorizedFactorial<Self::Base> {
+        MemorizedFactorial::new(n)
+    }
+    fn memorized_fact(mf: &MemorizedFactorial<Self::Base>) -> &[Self];
+    fn memorized_inv_fact(mf: &MemorizedFactorial<Self::Base>) -> &[Self];
+    fn memorized_inv(mf: &MemorizedFactorial<Self::Base>, n: usize) -> Self;
+}
+
+impl<M> FormalPowerSeriesCoefficient for MInt<M>
+where
+    M: MIntConvert<usize> + MIntConvert<isize>,
+{
+    type Base = M;
+    fn pow(self, exp: usize) -> Self {
+        Self::pow(self, exp)
+    }
+    fn memorized_fact(mf: &MemorizedFactorial<Self::Base>) -> &[Self] {
+        &mf.fact
+    }
+    fn memorized_inv_fact(mf: &MemorizedFactorial<Self::Base>) -> &[Self] {
+        &mf.inv_fact
+    }
+    fn memorized_inv(mf: &MemorizedFactorial<Self::Base>, n: usize) -> Self {
+        mf.inv(n)
+    }
+}
+
+pub trait FormalPowerSeriesCoefficientSqrt: FormalPowerSeriesCoefficient {
+    fn sqrt_coefficient(&self) -> Option<Self>;
+}
+
+impl<M> FormalPowerSeriesCoefficientSqrt for MInt<M>
+where
+    M: MIntConvert<u32> + MIntConvert<usize> + MIntConvert<isize>,
+{
+    fn sqrt_coefficient(&self) -> Option<Self> {
+        self.sqrt()
+    }
+}
+
+mod formal_power_series_impls;
+mod formal_power_series_nums;

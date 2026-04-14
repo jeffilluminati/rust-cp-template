@@ -2,7 +2,7 @@
 name = "rust_codeforce_template"
 version = "0.1.1"
 authors = ["Zhenbo Li <litimetal@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [lib]
 name = "my_lib"
@@ -34,11 +34,10 @@ name = "g"
 path = "src/bin/g.rs"
 
 
-#[dependencies]
+
 
 [dev-dependencies]
 rand = "0.8.4"
-
 criterion = "0.3.4"
 
 [[bench]]

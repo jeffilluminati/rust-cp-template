@@ -1,5 +1,10 @@
-#  [![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://stand-with-ukraine.pp.ua) 
+# Rust Competitive Programming Library.
+Simply edit the files under `src/bin/.`
 
+Library from https://github.com/to-omer/competitive-library.
+Framework from https://github.com/Endle/rust_codeforce_template. 
+
+Licensed under GNU GPLv3. 
 
 ### Install Rust Bundler 
 
