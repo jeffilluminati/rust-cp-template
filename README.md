@@ -76,5 +76,4 @@ All credit goes to the amazing [__to-omer__](https://github.com/to-omer) and [__
 ## License
 
 This repository is distributed under the GNU General Public License, version 3.
-It includes inherited MIT-licensed upstream code, and the original MIT notice
-is preserved in [LICENSE](LICENSE).
+It includes inherited MIT-licensed and CC0-licensed upstream code.
