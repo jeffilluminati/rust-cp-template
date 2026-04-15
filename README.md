@@ -50,7 +50,7 @@ cargo run --bin a
 3. Bundle, compile, and execute the single-file submission:
 
 ```bash
-./cr.py a
+./cr a
 ```
 
 If no binary name is provided, `cr.py` defaults to `rust_codeforce_template`.
@@ -60,16 +60,14 @@ If no binary name is provided, `cr.py` defaults to `rust_codeforce_template`.
 ```bash
 cargo test
 cargo run --bin main
-./cr.py main
-./cr.py --reset
+./cr main
+./cr --reset
 ```
 
-`./cr.py --reset` backs up the current problem files under `backup/<timestamp>/`
+`./cr --reset` backs up the current problem files under `backup/<timestamp>/`
 and restores fresh copies from `src/bin/_template.rs`.
 
-Bundled output is written to `/dev/shm` on Linux and to `../../../Downloads`
-when the script detects WSL.
-
+Bundled output is written to `/tmp/`.
 ## License
 
 This repository is distributed under the GNU General Public License, version 3.
