@@ -1,3 +1,6 @@
+#my code repository
+src/bin/CSES Solutions
+
 /target
 Cargo.lock
 *.swp

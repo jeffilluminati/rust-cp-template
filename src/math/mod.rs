@@ -1,16 +1,5 @@
 //! mathematical datas
 
-use crate::algebra::{
-    AddMulOperation, Associative, Field, Group, Invertible, Magma, Monoid, Ring, SemiRing, Unital,
-};
-use crate::array;
-use crate::num::{
-    BarrettReduction, Complex, ExtendedGcd, MInt, MIntBase, MIntConvert, One, RangeBoundsExt,
-    Signed, Unsigned, Wrapping, Zero, montgomery,
-};
-use crate::tools::{AssociatedValue, PartialIgnoredOrd, SerdeByteStr, Xorshift};
-#[cfg(target_arch = "x86_64")]
-use crate::tools::{SimdBackend, simd_backend};
 pub use self::arbitrary_mod_binomial::ArbitraryModBinomial;
 pub use self::array_vec::{ArrayVec, ToArrayVec, ToArrayVecScalar};
 pub use self::berlekamp_massey::berlekamp_massey;
@@ -60,6 +49,17 @@ pub use self::primitive_root::{check_primitive_root, primitive_root};
 pub use self::quotient_array::QuotientArray;
 pub use self::relaxed_convolution::RelaxedConvolution;
 pub use self::subset_convolve::SubsetConvolve;
+use crate::algebra::{
+    AddMulOperation, Associative, Field, Group, Invertible, Magma, Monoid, Ring, SemiRing, Unital,
+};
+use crate::array;
+use crate::num::{
+    BarrettReduction, Complex, ExtendedGcd, MInt, MIntBase, MIntConvert, One, RangeBoundsExt,
+    Signed, Unsigned, Wrapping, Zero, montgomery,
+};
+use crate::tools::{AssociatedValue, PartialIgnoredOrd, SerdeByteStr, Xorshift};
+#[cfg(target_arch = "x86_64")]
+use crate::tools::{SimdBackend, simd_backend};
 mod arbitrary_mod_binomial;
 mod array_vec;
 mod berlekamp_massey;

@@ -1,4 +1,3 @@
-use crate::tools::IterScan;
 pub use self::barrett_reduction::{BarrettReduction, Barrettable};
 pub use self::bounded::Bounded;
 pub use self::complex::Complex;
@@ -16,6 +15,7 @@ pub use self::quad_double::QuadDouble;
 pub use self::rational::Rational;
 pub use self::urational::URational;
 pub use self::zero_one::{One, Zero};
+use crate::tools::IterScan;
 mod barrett_reduction;
 mod bounded;
 mod complex;

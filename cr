@@ -130,7 +130,7 @@ def strip_from_marker(text, marker):
 
 
 def normalize_entry_source(source):
-    return source.replace("my_lib::", "crate::")
+    return source.replace("cp::", "crate::")
 
 
 def find_rust_block_end(text, start_idx):
@@ -307,8 +307,8 @@ def compile_rs(rs_file):
         return
 
     try:
-        compile_rs_with_my_lib_wrapper(rs_file)
-        print("Bundled file depends on exported my_lib macros; compiled via wrapper for local execution")
+        compile_rs_with_cp_wrapper(rs_file)
+        print("Bundled file depends on exported cp macros; compiled via wrapper for local execution")
     except subprocess.CalledProcessError:
         if result.stdout:
             print(result.stdout, end="")
@@ -317,23 +317,23 @@ def compile_rs(rs_file):
         raise
 
 
-def find_compiled_my_lib():
-    for candidate in ("target/debug/libmy_lib.rlib", "target/release/libmy_lib.rlib"):
+def find_compiled_cp():
+    for candidate in ("target/debug/libcp.rlib", "target/release/libcp.rlib"):
         if os.path.exists(candidate):
             return candidate
 
-    matches = sorted(glob.glob("target/debug/deps/libmy_lib-*.rlib"))
+    matches = sorted(glob.glob("target/debug/deps/libcp-*.rlib"))
     if matches:
         return matches[0]
 
-    matches = sorted(glob.glob("target/release/deps/libmy_lib-*.rlib"))
+    matches = sorted(glob.glob("target/release/deps/libcp-*.rlib"))
     if matches:
         return matches[0]
 
     return None
 
 
-def compile_rs_with_my_lib_wrapper(rs_file):
+def compile_rs_with_cp_wrapper(rs_file):
     env = os.environ.copy()
     env.pop("RUSTC_WRAPPER", None)
     rustflags = " ".join(RELEASE_RUSTC_FLAGS)
@@ -352,15 +352,15 @@ def compile_rs_with_my_lib_wrapper(rs_file):
             print(cargo_build.stderr, end="", file=sys.stderr)
         cargo_build.check_returncode()
 
-    my_lib_rlib = find_compiled_my_lib()
-    if my_lib_rlib is None:
-        print("Failed to locate compiled my_lib artifact after cargo build --lib")
+    cp_rlib = find_compiled_cp()
+    if cp_rlib is None:
+        print("Failed to locate compiled cp artifact after cargo build --lib")
         exit(1)
 
     wrapper_path = rs_file + "_wrapper.rs"
     with open(wrapper_path, "w", encoding="utf-8") as fh:
         fh.write("#[macro_use]\n")
-        fh.write("extern crate my_lib;\n\n")
+        fh.write("extern crate cp;\n\n")
         fh.write(f'include!(r"{rs_file}.rs");\n')
 
     rustc_command = [
@@ -371,7 +371,7 @@ def compile_rs_with_my_lib_wrapper(rs_file):
         "-L",
         "dependency=target/release/deps",
         "--extern",
-        f"my_lib={my_lib_rlib}",
+        f"cp={cp_rlib}",
         "-o",
         rs_file,
     ]

@@ -2,7 +2,7 @@
 // statement.
 
 pub fn solve() {
-    my_lib::prepare!();
+    cp::prepare!();
     sc!(n, mut a: [usize; n]);
     a.sort_unstable();
     let mut ans = vec![];
@@ -24,4 +24,4 @@ pub fn solve() {
     pp!(@it ans);
 }
 
-my_lib::main!();
+cp::main!();

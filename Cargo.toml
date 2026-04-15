@@ -1,14 +1,14 @@
 [package]
-name = "rust_codeforce_template"
+name = "rust-cp-template"
 version = "0.1.1"
-authors = ["Zhenbo Li <litimetal@gmail.com>"]
+authors = ["Mayukh Das <mayukh4321@gmail.com>"]
 edition = "2024"
 
 [lib]
-name = "my_lib"
+name = "cp"
 
 [[bin]]
-name = "rust_codeforce_template"
+name = "rust-cp-template"
 path = "src/bin/main.rs"
 
 [[bin]]
@@ -33,13 +33,3 @@ path = "src/bin/f.rs"
 name = "g"
 path = "src/bin/g.rs"
 
-
-
-
-[dev-dependencies]
-rand = "0.8.4"
-criterion = "0.3.4"
-
-[[bench]]
-name = "bench_algo"
-harness = false

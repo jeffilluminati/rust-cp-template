@@ -1,12 +1,5 @@
 //! graph structures and algorithms
 
-use crate::{
-    algebra::{AddMulOperation, AdditiveOperation, Group, Monoid, MonoidAct, SemiRing},
-    algorithm::BitDpExt,
-    data_structure::{MergingUnionFind, PairingHeap, UnionFind},
-    num::{Bounded, One, Zero},
-    tools::{IterScan, MarkedIterScan, PartialIgnoredOrd, comparator},
-};
 pub use self::adjacency_list::{AdjacencyListGraph, AdjacencyListGraphScanner};
 pub use self::bipartite_matching::BipartiteMatching;
 pub use self::closure::{ClosureGraph, UsizeGraph};
@@ -26,6 +19,13 @@ pub use self::sparse_graph::*;
 pub use self::steiner_tree::{SteinerTreeExt, SteinerTreeOutput};
 pub use self::strongly_connected_component::StronglyConnectedComponent;
 pub use self::two_satisfiability::TwoSatisfiability;
+use crate::{
+    algebra::{AddMulOperation, AdditiveOperation, Group, Monoid, MonoidAct, SemiRing},
+    algorithm::BitDpExt,
+    data_structure::{MergingUnionFind, PairingHeap, UnionFind},
+    num::{Bounded, One, Zero},
+    tools::{IterScan, MarkedIterScan, PartialIgnoredOrd, comparator},
+};
 mod adjacency_list;
 mod bipartite_matching;
 mod closure;

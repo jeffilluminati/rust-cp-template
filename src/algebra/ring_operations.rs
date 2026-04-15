@@ -1,5 +1,5 @@
-use super::{magma::*, operations::BitXorOperation, ring::*};
 pub use self::gf2_63::Gf2_63;
+use super::{magma::*, operations::BitXorOperation, ring::*};
 mod gf2_63 {
     use super::*;
     pub enum Gf2_63 {}

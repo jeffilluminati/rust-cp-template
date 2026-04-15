@@ -1,12 +1,5 @@
 //! data structures
 
-use crate::algebra::{
-    AbelianGroup, AbelianMonoid, AdditiveOperation, Associative, EmptyAct, Group, LazyMapMonoid,
-    Magma, MaxOperation, MinOperation, Monoid, MonoidAct, SemiGroup, Unital,
-};
-use crate::algorithm::{BitDpExt, SliceBisectExt};
-use crate::num::{Bounded, RangeBoundsExt};
-use crate::tools::{Comparator, Xorshift, comparator};
 pub use self::accumulate::{Accumulate, Accumulate2d, AccumulateKd};
 pub use self::allocator::{Allocator, BoxAllocator, MemoryPool};
 pub use self::binary_indexed_tree::BinaryIndexedTree;
@@ -57,6 +50,13 @@ pub use self::union_find::{
 };
 pub use self::vec_map::{FixedVecMapFactory, VecMap, VecMapFactory, VecMapFactoryWithCapacity};
 pub use self::wavelet_matrix::WaveletMatrix;
+use crate::algebra::{
+    AbelianGroup, AbelianMonoid, AdditiveOperation, Associative, EmptyAct, Group, LazyMapMonoid,
+    Magma, MaxOperation, MinOperation, Monoid, MonoidAct, SemiGroup, Unital,
+};
+use crate::algorithm::{BitDpExt, SliceBisectExt};
+use crate::num::{Bounded, RangeBoundsExt};
+use crate::tools::{Comparator, Xorshift, comparator};
 mod accumulate;
 mod allocator;
 mod binary_indexed_tree;

@@ -1,10 +1,10 @@
-use crate::data_structure::BitSet;
 pub use self::knapsack_problem::*;
 pub use self::largest_pattern::*;
 pub use self::levenshtein_distance::levenshtein_distance;
 pub use self::lexicographical_subsequence::LexicographicalSubsequence;
 pub use self::longest_increasing_subsequence::LongestIncreasingSubsequence;
 pub use self::subset_sum_problem::SubsetSumProblem;
+use crate::data_structure::BitSet;
 mod knapsack_problem;
 mod largest_pattern;
 mod levenshtein_distance;
