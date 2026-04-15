@@ -68,6 +68,11 @@ cargo run --bin main
 and restores fresh copies from `src/bin/_template.rs`.
 
 Bundled output is written to `/tmp/`.
+
+## Credits
+
+All credit goes to the amazing [__to-omer__](https://github.com/to-omer) and [__Endle__](https://github.com/Endle) for the amazing code and template they have provided. 
+
 ## License
 
 This repository is distributed under the GNU General Public License, version 3.
