@@ -28,16 +28,6 @@ Install the bundler from crates.io:
 cargo install rust_bundler_cp
 ```
 
-If you want to test against a local checkout of the bundler, place the
-`rust-bundler-cp` repository next to this one and run:
-
-```bash
-./compile_bleeding_edge_bundler.sh
-```
-
-When a local `./rust_bundler_cp` binary exists, `cr.py` will prefer it over
-the globally installed version.
-
 ## Typical workflow
 
 1. Edit the target binary, for example `src/bin/a.rs` or `src/bin/main.rs`.
@@ -53,16 +43,7 @@ cargo run --bin a
 ./cr a
 ```
 
-If no binary name is provided, `cr.py` defaults to `rust_codeforce_template`.
-
 ## Useful commands
-
-```bash
-cargo test
-cargo run --bin main
-./cr main
-./cr --reset
-```
 
 `./cr --reset` backs up the current problem files under `backup/<timestamp>/`
 and restores fresh copies from `src/bin/_template.rs`.
