@@ -274,10 +274,10 @@ where
     Spec: BstSpec<Data = Data, Parent = WithParent<Data>>,
     BorrowType: marker::BorrowType,
 {
-    pub fn ascend(self) -> Result<BstNodeRef<BorrowType, Spec>, Self> {
-        const {
-            assert!(BorrowType::TRAVERSAL_PERMIT);
-        };
+    pub fn ascend(self) -> Result<BstNodeRef<BorrowType, Spec>, Self>
+    where
+        BorrowType: marker::TraversalBorrowType,
+    {
         let parent = unsafe { self.node.as_ref().parent.parent };
         parent
             .map(|node| BstNodeRef {
@@ -286,7 +286,10 @@ where
             })
             .ok_or(self)
     }
-    pub fn root_path(self) -> (Self, Vec<bool>) {
+    pub fn root_path(self) -> (Self, Vec<bool>)
+    where
+        BorrowType: marker::TraversalBorrowType,
+    {
         let mut node = self;
         let mut nn = node.node;
         let mut stack = vec![];
@@ -504,10 +507,10 @@ where
     BorrowType: marker::BorrowType,
     Dir: marker::BstDirection,
 {
-    pub fn descend(self) -> Result<BstNodeRef<BorrowType, Spec>, Self> {
-        const {
-            assert!(BorrowType::TRAVERSAL_PERMIT);
-        };
+    pub fn descend(self) -> Result<BstNodeRef<BorrowType, Spec>, Self>
+    where
+        BorrowType: marker::TraversalBorrowType,
+    {
         let child = unsafe { self.node.node.as_ref().child.get_unchecked(Dir::IDX) };
         child
             .map(|node| BstNodeRef {
@@ -586,6 +589,7 @@ pub mod marker {
     pub trait BorrowType {
         const TRAVERSAL_PERMIT: bool = true;
     }
+    pub trait TraversalBorrowType: BorrowType {}
     impl BorrowType for Owned {
         const TRAVERSAL_PERMIT: bool = false;
     }
@@ -594,4 +598,9 @@ pub mod marker {
     impl<'a> BorrowType for Immut<'a> {}
     impl<'a> BorrowType for Mut<'a> {}
     impl<'a> BorrowType for DataMut<'a> {}
+    impl TraversalBorrowType for Dying {}
+    impl TraversalBorrowType for DormantMut {}
+    impl<'a> TraversalBorrowType for Immut<'a> {}
+    impl<'a> TraversalBorrowType for Mut<'a> {}
+    impl<'a> TraversalBorrowType for DataMut<'a> {}
 }

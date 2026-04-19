@@ -78,10 +78,10 @@ impl BitSet {
     }
 
     fn trim(&mut self) {
-        if self.size & 63 != 0
-            && let Some(x) = self.bits.last_mut()
-        {
-            *x &= 0xffff_ffff_ffff_ffff >> (64 - (self.size & 63));
+        if self.size & 63 != 0 {
+            if let Some(x) = self.bits.last_mut() {
+                *x &= 0xffff_ffff_ffff_ffff >> (64 - (self.size & 63));
+            }
         }
     }
 

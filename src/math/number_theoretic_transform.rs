@@ -1133,7 +1133,7 @@ pub trait NttReuse: ConvolveSteps {
 }
 
 thread_local!(
-    static BIT_REVERSE: UnsafeCell<Vec<Vec<usize>>> = const { UnsafeCell::new(vec![]) };
+    static BIT_REVERSE: UnsafeCell<Vec<Vec<usize>>> = UnsafeCell::new(vec![]);
 );
 
 impl<M> NttReuse for Convolve<M>

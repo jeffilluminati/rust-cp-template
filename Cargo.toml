@@ -32,4 +32,3 @@ path = "src/bin/f.rs"
 [[bin]]
 name = "g"
 path = "src/bin/g.rs"
-

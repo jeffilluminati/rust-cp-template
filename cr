@@ -130,7 +130,19 @@ def strip_from_marker(text, marker):
 
 
 def normalize_entry_source(source):
-    return source.replace("cp::", "crate::")
+    replacements = {
+        "cp::prepare!": "crate::prepare!",
+        "cp::main!": "crate::main!",
+        "cp::array!": "crate::array!",
+        "cp::scan!": "crate::scan!",
+        "cp::scan_value!": "crate::scan_value!",
+        "cp::iter_print!": "crate::iter_print!",
+        "cp::define_enum_scan!": "crate::define_enum_scan!",
+        "cp::tools::": "crate::tools::",
+    }
+    for old, new in replacements.items():
+        source = source.replace(old, new)
+    return source
 
 
 def find_rust_block_end(text, start_idx):
@@ -213,24 +225,23 @@ def find_rust_block_end(text, start_idx):
 
 
 def extract_bundled_support(bundle_text):
-    solve_match = re.search(r"\b(?:pub\s+)?fn\s+solve\s*\(", bundle_text)
-    if not solve_match:
-        return bundle_text.strip()
-
     main_matches = list(re.finditer(r"(?:\b(?:crate::)?main!\s*\([^;]*\)\s*;)", bundle_text, re.S))
     if main_matches:
-        support = (bundle_text[:solve_match.start()] + "\n" + bundle_text[main_matches[-1].end():]).strip()
-        return support
+        return bundle_text[main_matches[-1].end():].strip()
 
-    main_fn_match = re.search(r"\bfn\s+main\s*\(", bundle_text[solve_match.start():])
+    main_fn_match = re.search(r"\bfn\s+main\s*\(", bundle_text)
     if main_fn_match:
-        main_start = solve_match.start() + main_fn_match.start()
-        main_end = find_rust_block_end(bundle_text, main_start)
+        main_end = find_rust_block_end(bundle_text, main_fn_match.start())
         if main_end is not None:
-            support = (bundle_text[:solve_match.start()] + "\n" + bundle_text[main_end:]).strip()
-            return support
+            return bundle_text[main_end:].strip()
 
-    return bundle_text.strip()
+    solve_match = re.search(r"\b(?:pub\s+)?fn\s+solve\s*\(", bundle_text)
+    if solve_match:
+        solve_end = find_rust_block_end(bundle_text, solve_match.start())
+        if solve_end is not None:
+            return bundle_text[solve_end:].strip()
+
+    return ""
 
 
 def compact_rust_section(text):
@@ -245,9 +256,32 @@ def compact_rust_section(text):
     return " ".join(compact_lines)
 
 
+def build_submission_tools_module():
+    return """
+mod tools {
+    pub use super::{
+        Byte1, Bytes, BytesWithBase, Chars, CharsWithBase, FastInput, FastOutput, IterScan,
+        MarkedIterScan, Scanner, ScannerIter, Usize1, read_all, read_all_unchecked,
+        read_stdin_all, read_stdin_all_unchecked, read_stdin_line,
+    };
+}
+""".strip()
+
+
+def build_submission_fastio_module():
+    fastio_text = strip_from_marker(read_text("src/tools/fastio.rs"), "\n#[cfg(test)]").strip()
+    return "\n".join([
+        "mod fastio {",
+        fastio_text,
+        "}",
+        "pub use fastio::{FastInput, FastOutput};",
+    ])
+
+
 def build_submission_boilerplate():
     array_text = strip_from_marker(read_text("src/tools/array.rs"), "\n#[test]").strip()
     scanner_text = strip_from_marker(read_text("src/tools/scanner.rs"), "\n#[cfg(test)]").strip()
+    fastio_text = build_submission_fastio_module()
     iter_print_text = strip_from_marker(read_text("src/tools/iter_print.rs"), "\n#[cfg(test)]").strip()
 
     main_text = read_text("src/tools/main.rs")
@@ -272,29 +306,43 @@ def build_submission_boilerplate():
         "$crate::Scanner::new",
     )
 
-    return "\n\n".join([array_text, scanner_text, iter_print_text, imports_text, macros_text])
+    tools_module_text = build_submission_tools_module()
+
+    return "\n\n".join([
+        array_text,
+        scanner_text,
+        fastio_text,
+        iter_print_text,
+        imports_text,
+        tools_module_text,
+        macros_text,
+    ])
 
 
 def rewrite_submission(binary, rs_file):
-    binary_source = read_text(resolve_binary_path(binary))
+    binary_source = normalize_entry_source(read_text(resolve_binary_path(binary)))
     bundled_source = read_text(rs_file + ".rs")
     bundled_support = extract_bundled_support(bundled_source)
 
-    sections = [normalize_entry_source(binary_source).strip()]
+    sections = [
+        "#![allow(macro_expanded_macro_exports_accessed_by_absolute_paths)]",
+        binary_source.strip(),
+    ]
     if bundled_support:
         sections.append(compact_rust_section(bundled_support))
-    sections.append(compact_rust_section(build_submission_boilerplate()))
+    else:
+        sections.append(compact_rust_section(build_submission_boilerplate()))
 
     submission = "\n\n".join(section for section in sections if section) + "\n"
     Path(rs_file + ".rs").write_text(submission, encoding="utf-8")
 
 
 def rustc_release_command(source_path, output_path):
-    return ["rustc", "--edition=2024", *RELEASE_RUSTC_FLAGS, source_path, "-o", output_path]
+    return ["rustc", "--edition=2021", *RELEASE_RUSTC_FLAGS, source_path, "-o", output_path]
 
 
 def rustc_release_prefix():
-    return ["rustc", "--edition=2024", *RELEASE_RUSTC_FLAGS]
+    return ["rustc", "--edition=2021", *RELEASE_RUSTC_FLAGS]
 
 
 def compile_rs(rs_file):

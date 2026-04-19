@@ -67,11 +67,11 @@ pub fn prime_factors_flatten(mut n: u64) -> Vec<u64> {
 pub fn prime_factors(n: u64) -> Vec<(u64, u32)> {
     let mut res = Vec::new();
     for a in prime_factors_flatten(n) {
-        if let Some((p, len)) = res.last_mut()
-            && p == &a
-        {
-            *len += 1;
-            continue;
+        if let Some((p, len)) = res.last_mut() {
+            if p == &a {
+                *len += 1;
+                continue;
+            }
         }
         res.push((a, 1));
     }

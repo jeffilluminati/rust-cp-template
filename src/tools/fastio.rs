@@ -7,7 +7,7 @@ use std::{
     str::FromStr,
 };
 
-unsafe extern "C" {
+extern "C" {
     fn mmap(
         addr: *mut c_void,
         len: usize,
@@ -364,7 +364,7 @@ impl FastInput {
     }
 }
 
-static DIGIT4: [[u8; 4]; 10000] = const {
+const fn build_digit4() -> [[u8; 4]; 10000] {
     let mut arr = [[b' '; 4]; 10000];
     let mut i = 0;
     while i < 10000 {
@@ -378,7 +378,9 @@ static DIGIT4: [[u8; 4]; 10000] = const {
         i += 1;
     }
     arr
-};
+}
+
+static DIGIT4: [[u8; 4]; 10000] = build_digit4();
 
 pub struct FastOutput<W>
 where

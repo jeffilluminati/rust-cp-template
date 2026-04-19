@@ -203,19 +203,20 @@ where
             assert!(node.hash == self.state.hash());
 
             for op in self.state.candidates() {
-                if let Some((score, hash, accept)) =
-                    self.state
-                        .soft_update(op.clone(), node.score.clone(), node.hash.clone())
-                    && !set.contains(&hash)
+                if let Some((score, hash, accept)) = self
+                    .state
+                    .soft_update(op.clone(), node.score.clone(), node.hash.clone())
                 {
-                    cands.push(Candidate {
-                        parent: self.cur_node,
-                        op,
-                        score,
-                        hash,
-                        accept,
-                    });
-                };
+                    if !set.contains(&hash) {
+                        cands.push(Candidate {
+                            parent: self.cur_node,
+                            op,
+                            score,
+                            hash,
+                            accept,
+                        });
+                    }
+                }
             }
         } else {
             let node = self.cur_node;
