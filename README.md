@@ -10,12 +10,10 @@ The codebase is derived from:
 
 ## Repository layout
 
-- `src/lib.rs`: library entry point exposed as `my_lib`
+- `src/lib.rs`: library entry point exposed as `cp`
 - `src/bin/_template.rs`: starter file used when resetting problem files
 - `src/bin/{main,a,b,c,d,e,f,g}.rs`: contest or problem entry points
-- `cr.py`: bundle, compile, and run a selected binary with `rust_bundler_cp`
-- `compile_bleeding_edge_bundler.sh`: build a local `rust_bundler_cp` binary
-- `run_with_bundle.sh`: troubleshooting helper for bundled output
+- `cr`: helper python script to bundle, compile, and run a selected binary
 
 ## Prerequisites
 
@@ -52,7 +50,7 @@ Bundled output is written to `/tmp/`.
 
 ## Credits
 
-All credit goes to the amazing [__to-omer__](https://github.com/to-omer) and [__Endle__](https://github.com/Endle) for the amazing code and template they have provided. 
+All credit goes to the amazing [__to-omer__](https://github.com/to-omer) and [__Endle__](https://github.com/Endle) for the library and template they have provided. 
 
 ## License
 
