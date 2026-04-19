@@ -54,12 +54,16 @@ mod main_macros {
             let __in_buf = $crate::tools::read_stdin_all_unchecked();
             #[allow(unused_mut,unused_variables)]
             let mut __scanner = $crate::tools::Scanner::new(&__in_buf);
+            #[allow(unused_imports)]
+            use $crate::tools::{Byte1, Bytes, BytesWithBase, Chars, CharsWithBase, Usize1};
             #[allow(unused_macros)]
             macro_rules! sc { ($dol($dol t:tt)*) => { $dol crate::scan!(__scanner, $dol($dol t)*) } }
             #[allow(unused_macros)]
             macro_rules! sv { ($dol($dol t:tt)*) => { $dol crate::scan_value!(__scanner, $dol($dol t)*) } }
         };
         (@interactive ($dol:tt)) => {
+            #[allow(unused_imports)]
+            use $crate::tools::{Byte1, Bytes, BytesWithBase, Chars, CharsWithBase, Usize1};
             #[allow(unused_macros)]
             /// Scan a line, and previous line will be truncated in the next call.
             macro_rules! scln {
