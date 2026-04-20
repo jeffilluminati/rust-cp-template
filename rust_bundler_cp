@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENDORED_DIR="${SCRIPT_DIR}/rust_bundler"
+TARGET_BIN="${VENDORED_DIR}/target/release/rust_bundler_cp"
+
+if [[ ! -x "${TARGET_BIN}" ]]; then
+  (
+    cd "${VENDORED_DIR}"
+    unset RUSTC_WRAPPER
+    cargo build --release
+  )
+fi
+
+exec "${TARGET_BIN}" "$@"
