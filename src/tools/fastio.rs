@@ -1,7 +1,7 @@
 use std::{
     ffi::{c_int, c_void},
     fs::File,
-    io::{BufWriter, Read, StdoutLock, Write, stdout},
+    io::{stdout, BufWriter, Read, StdoutLock, Write},
     os::fd::FromRawFd,
     ptr,
     str::FromStr,

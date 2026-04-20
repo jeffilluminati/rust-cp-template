@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 #![allow(clippy::crate_in_macro_def)]
 
-#[cfg_attr(nightly, rust_minify::skip)]
 pub fn solve() {
     crate::prepare!();
     sc!(_n);

@@ -5,6 +5,7 @@
 
 import subprocess
 import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -16,7 +17,13 @@ import shlex
 RUST_VERSION = "1.94.0" # As of 2025-05-16, Kattis
 BUNDLER = "rust_bundler_cp"
 STRIP_OUTPUT = ""
-BLEEDING = False
+DEFAULT_OJ = "codeforces"
+OJ_EDITIONS = {
+    "cses": "2021",
+    "codeforces": "2024",
+    "atcoder": "2024",
+    "kattis": "2024",
+}
 RELEASE_RUSTC_FLAGS = [
     "-C",
     "opt-level=2",
@@ -122,232 +129,40 @@ def read_text(path):
     return Path(path).read_text(encoding="utf-8")
 
 
-def strip_from_marker(text, marker):
-    idx = text.find(marker)
-    if idx == -1:
-        return text
-    return text[:idx]
+def rewrite_edition_specific_syntax(source, edition):
+    if edition != "2024":
+        return source
+    return re.sub(r'(?<!\bunsafe\s)extern\s+"C"', 'unsafe extern "C"', source)
 
 
-def normalize_entry_source(source):
-    replacements = {
-        "cp::prepare!": "crate::prepare!",
-        "cp::main!": "crate::main!",
-        "cp::array!": "crate::array!",
-        "cp::scan!": "crate::scan!",
-        "cp::scan_value!": "crate::scan_value!",
-        "cp::iter_print!": "crate::iter_print!",
-        "cp::define_enum_scan!": "crate::define_enum_scan!",
-        "cp::tools::": "crate::tools::",
-    }
-    for old, new in replacements.items():
-        source = source.replace(old, new)
-    return source
-
-
-def find_rust_block_end(text, start_idx):
-    brace_idx = text.find("{", start_idx)
-    if brace_idx == -1:
-        return None
-
-    depth = 0
-    i = brace_idx
-    in_string = False
-    in_char = False
-    in_line_comment = False
-    in_block_comment = False
-    escape = False
-
-    while i < len(text):
-        ch = text[i]
-        nxt = text[i + 1] if i + 1 < len(text) else ""
-
-        if in_line_comment:
-            if ch == "\n":
-                in_line_comment = False
-            i += 1
-            continue
-
-        if in_block_comment:
-            if ch == "*" and nxt == "/":
-                in_block_comment = False
-                i += 2
-                continue
-            i += 1
-            continue
-
-        if in_string:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == '"':
-                in_string = False
-            i += 1
-            continue
-
-        if in_char:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == "'":
-                in_char = False
-            i += 1
-            continue
-
-        if ch == "/" and nxt == "/":
-            in_line_comment = True
-            i += 2
-            continue
-        if ch == "/" and nxt == "*":
-            in_block_comment = True
-            i += 2
-            continue
-        if ch == '"':
-            in_string = True
-            i += 1
-            continue
-        if ch == "'":
-            in_char = True
-            i += 1
-            continue
-
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return i + 1
-        i += 1
-
-    return None
-
-
-def extract_bundled_support(bundle_text):
-    main_matches = list(re.finditer(r"(?:\b(?:crate::)?main!\s*\([^;]*\)\s*;)", bundle_text, re.S))
-    if main_matches:
-        return bundle_text[main_matches[-1].end():].strip()
-
-    main_fn_match = re.search(r"\bfn\s+main\s*\(", bundle_text)
-    if main_fn_match:
-        main_end = find_rust_block_end(bundle_text, main_fn_match.start())
-        if main_end is not None:
-            return bundle_text[main_end:].strip()
-
-    solve_match = re.search(r"\b(?:pub\s+)?fn\s+solve\s*\(", bundle_text)
-    if solve_match:
-        solve_end = find_rust_block_end(bundle_text, solve_match.start())
-        if solve_end is not None:
-            return bundle_text[solve_end:].strip()
-
-    return ""
-
-
-def compact_rust_section(text):
-    compact_lines = []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if stripped.startswith("//"):
-            continue
-        compact_lines.append(stripped)
-    return " ".join(compact_lines)
-
-
-def build_submission_tools_module():
-    return """
-mod tools {
-    pub use super::{
-        Byte1, Bytes, BytesWithBase, Chars, CharsWithBase, FastInput, FastOutput, IterScan,
-        MarkedIterScan, Scanner, ScannerIter, Usize1, read_all, read_all_unchecked,
-        read_stdin_all, read_stdin_all_unchecked, read_stdin_line,
-    };
-}
-""".strip()
-
-
-def build_submission_fastio_module():
-    fastio_text = strip_from_marker(read_text("src/tools/fastio.rs"), "\n#[cfg(test)]").strip()
-    return "\n".join([
-        "mod fastio {",
-        fastio_text,
-        "}",
-        "pub use fastio::{FastInput, FastOutput};",
-    ])
-
-
-def build_submission_boilerplate():
-    array_text = strip_from_marker(read_text("src/tools/array.rs"), "\n#[test]").strip()
-    scanner_text = strip_from_marker(read_text("src/tools/scanner.rs"), "\n#[cfg(test)]").strip()
-    fastio_text = build_submission_fastio_module()
-    iter_print_text = strip_from_marker(read_text("src/tools/iter_print.rs"), "\n#[cfg(test)]").strip()
-
-    main_text = read_text("src/tools/main.rs")
-    imports_start = main_text.find("#[allow(unused_imports)]")
-    macros_start = main_text.find("mod main_macros {")
-    if imports_start == -1 or macros_start == -1:
-        print("Failed to extract submission boilerplate from src/tools/main.rs")
+def edition_for_oj(oj):
+    normalized = oj.lower()
+    if normalized not in OJ_EDITIONS:
+        supported = ", ".join(sorted(OJ_EDITIONS))
+        print(f"Unknown online judge '{oj}'. Supported values: {supported}")
         exit(1)
-
-    imports_text = main_text[imports_start:macros_start].strip()
-    macros_text = main_text[macros_start:].strip()
-    macros_text = macros_text.replace(
-        "$crate::tools::read_stdin_all_unchecked()",
-        "$crate::read_stdin_all_unchecked()",
-    )
-    macros_text = macros_text.replace(
-        "$crate::tools::read_stdin_line()",
-        "$crate::read_stdin_line()",
-    )
-    macros_text = macros_text.replace(
-        "$crate::tools::Scanner::new",
-        "$crate::Scanner::new",
-    )
-
-    tools_module_text = build_submission_tools_module()
-
-    return "\n\n".join([
-        array_text,
-        scanner_text,
-        fastio_text,
-        iter_print_text,
-        imports_text,
-        tools_module_text,
-        macros_text,
-    ])
+    return OJ_EDITIONS[normalized]
 
 
-def rewrite_submission(binary, rs_file):
-    binary_source = normalize_entry_source(read_text(resolve_binary_path(binary)))
-    bundled_source = read_text(rs_file + ".rs")
-    bundled_support = extract_bundled_support(bundled_source)
-
-    sections = [
-        "#![allow(macro_expanded_macro_exports_accessed_by_absolute_paths)]",
-        binary_source.strip(),
-    ]
-    if bundled_support:
-        sections.append(compact_rust_section(bundled_support))
-    else:
-        sections.append(compact_rust_section(build_submission_boilerplate()))
-
-    submission = "\n\n".join(section for section in sections if section) + "\n"
+def rewrite_submission(rs_file, edition):
+    submission = read_text(rs_file + ".rs")
+    submission = rewrite_edition_specific_syntax(submission, edition)
+    if not submission.endswith("\n"):
+        submission += "\n"
     Path(rs_file + ".rs").write_text(submission, encoding="utf-8")
 
 
-def rustc_release_command(source_path, output_path):
-    return ["rustc", "--edition=2021", *RELEASE_RUSTC_FLAGS, source_path, "-o", output_path]
+def rustc_release_command(source_path, output_path, edition):
+    return ["rustc", f"--edition={edition}", *RELEASE_RUSTC_FLAGS, source_path, "-o", output_path]
 
 
-def rustc_release_prefix():
-    return ["rustc", "--edition=2021", *RELEASE_RUSTC_FLAGS]
+def rustc_release_prefix(edition):
+    return ["rustc", f"--edition={edition}", *RELEASE_RUSTC_FLAGS]
 
 
-def compile_rs(rs_file):
+def compile_rs(rs_file, edition):
     result = subprocess.run(
-        rustc_release_command(rs_file + ".rs", rs_file),
+        rustc_release_command(rs_file + ".rs", rs_file, edition),
         capture_output=True,
         text=True,
     )
@@ -355,7 +170,7 @@ def compile_rs(rs_file):
         return
 
     try:
-        compile_rs_with_cp_wrapper(rs_file)
+        compile_rs_with_cp_wrapper(rs_file, edition)
         print("Bundled file depends on exported cp macros; compiled via wrapper for local execution")
     except subprocess.CalledProcessError:
         if result.stdout:
@@ -381,7 +196,7 @@ def find_compiled_cp():
     return None
 
 
-def compile_rs_with_cp_wrapper(rs_file):
+def compile_rs_with_cp_wrapper(rs_file, edition):
     env = os.environ.copy()
     env.pop("RUSTC_WRAPPER", None)
     rustflags = " ".join(RELEASE_RUSTC_FLAGS)
@@ -412,7 +227,7 @@ def compile_rs_with_cp_wrapper(rs_file):
         fh.write(f'include!(r"{rs_file}.rs");\n')
 
     rustc_command = [
-        *rustc_release_prefix(),
+        *rustc_release_prefix(edition),
         "--crate-name",
         Path(rs_file).name + "_wrapper",
         wrapper_path,
@@ -458,35 +273,92 @@ def reset_workspace():
     exit(0)
 
 
-def check_bleeding_edge_bundler():
-    global BUNDLER
-    global BLEEDING
-    global STRIP_OUTPUT
+def bundler_supports(flag):
+    result = subprocess.run(
+        [BUNDLER, "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0 and flag in result.stdout
+
+
+def resolve_bundler():
     bleed = "./" + BUNDLER
     if os.path.exists(bleed):
         print("Using bleeding edge bundler")
-        BUNDLER = bleed
-        BLEEDING = True
+        return bleed
+
+    resolved = shutil.which(BUNDLER)
+    if resolved is not None:
+        return resolved
+
+    cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
+    cargo_bin = cargo_home / "bin" / BUNDLER
+    if cargo_bin.exists():
+        return str(cargo_bin)
+
+    print(f"Failed to locate bundler '{BUNDLER}' in PATH or {cargo_bin}")
+    exit(1)
+
+
+def configure_bundler():
+    global BUNDLER
+    global STRIP_OUTPUT
+    BUNDLER = resolve_bundler()
+
+    if bundler_supports("--remove_unused_mod"):
         STRIP_OUTPUT = "--remove_unused_mod"
+
+
+def parse_args(argv):
+    oj = DEFAULT_OJ
+    binary = None
+    i = 0
+
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--reset":
+            reset_workspace()
+        elif arg in ("--oj", "--judge"):
+            i += 1
+            if i >= len(argv):
+                print(f"Missing value for {arg}")
+                exit(1)
+            oj = argv[i]
+        elif arg.startswith("--oj="):
+            oj = arg.split("=", 1)[1]
+            if not oj:
+                print("Missing value for --oj")
+                exit(1)
+        elif arg.startswith("--judge="):
+            oj = arg.split("=", 1)[1]
+            if not oj:
+                print("Missing value for --judge")
+                exit(1)
+        elif arg.startswith("--"):
+            print(f"Unknown option '{arg}'")
+            exit(1)
+        elif binary is None:
+            binary = arg
+        else:
+            print(f"Unexpected argument '{arg}'")
+            exit(1)
+        i += 1
+
+    return binary, edition_for_oj(oj)
 
 
 def main():
     check_rust_toolkit()
     check_valid_cargo_directory()
-    check_bleeding_edge_bundler()
+    configure_bundler()
 
-    binary = "rust_codeforce_template"
-
-    if "--reset" in sys.argv:
-        reset_workspace()
-
-    if len(sys.argv) >= 2:
-        binary = resolve_binary(sys.argv[1])
-    else:
-        binary = resolve_binary(binary)
+    binary_arg, edition = parse_args(sys.argv[1:])
+    binary = resolve_binary(binary_arg or "rust_codeforce_template")
     rs_file = bundle(binary)
-    rewrite_submission(binary, rs_file)
-    compile_rs(rs_file)
+    rewrite_submission(rs_file, edition)
+    compile_rs(rs_file, edition)
     run_with_timing(rs_file)
 
 if __name__ == "__main__":
