@@ -6,8 +6,6 @@ use std::process;
 
 use rust_bundler_cp::BundlerConfig;
 
-use log::warn;
-
 fn main() {
     env_logger::builder()
         .format_timestamp(None)
@@ -21,7 +19,7 @@ fn main() {
         .args_from_usage("-i, --input=[PATH] 'REQUIRED. Path to a cargo directory' ")
         .args_from_usage("-o, --output=[FILE] 'If not specified, result would be written to STDIN'")
         .args_from_usage("-b --binary=[NAME] 'If multiple [[bin]] defined in Cargo.toml, this field is required'")
-        .args_from_usage("--remove_unused_mod 'If a pub mod statement in lib.rs is not used in selected bin, it would be removed EXPERIMENTAL!!'")
+        .args_from_usage("--edition=[YEAR] 'Rewrite bundled output for the given Rust edition'")
         .get_matches();
 
     let path: String = match matches.value_of("input") {
@@ -40,9 +38,8 @@ fn main() {
 
     let mut config: HashMap<BundlerConfig, String> = HashMap::new();
 
-    if matches.is_present("remove_unused_mod") {
-        warn!("Experimental function remove_unused_mod enabled");
-        config.insert(BundlerConfig::RemoveUnusedModInLib, String::new());
+    if let Some(edition) = matches.value_of("edition") {
+        config.insert(BundlerConfig::RustEdition, edition.to_string());
     }
 
     let code = rust_bundler_cp::bundle_specific_binary(path, binary_selected, config);
