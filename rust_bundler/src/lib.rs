@@ -496,6 +496,7 @@ fn prune_unused_support_items(file: &mut syn::File, crate_name: &str, binary_sou
         &entry_refs,
         crate_name,
         binary_source,
+        "",
     );
 }
 
@@ -924,6 +925,7 @@ fn prune_unused_items_in_scope(
     external_entry_refs: &HashSet<String>,
     crate_name: &str,
     binary_source: &str,
+    ancestor_scope_tokens: &str,
 ) {
     if items.is_empty() {
         return;
@@ -1062,6 +1064,23 @@ fn prune_unused_items_in_scope(
         }
     }
 
+    // Collect tokens from kept items at this scope, per-item, to pass as sibling
+    // context to children. This ensures that when pruning impl methods inside a child
+    // module, references from sibling modules are visible (e.g., random_generator
+    // calling rng.rand64() keeps rand64 alive inside xorshift). We exclude the child
+    // module's own tokens to avoid false self-references.
+    let kept_item_tokens: Vec<Option<String>> = items
+        .iter()
+        .enumerate()
+        .map(|(idx, item)| {
+            if keep[idx] {
+                Some(item.to_token_stream().to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
     for (idx, item) in items.iter_mut().enumerate() {
         let syn::Item::Mod(item_mod) = item else {
             continue;
@@ -1082,16 +1101,26 @@ fn prune_unused_items_in_scope(
         if current_module_path.is_empty() && child_name != "tools" {
             continue;
         }
+        // Build ancestor context: parent's ancestor tokens + sibling items (excluding this child).
+        let sibling_tokens = kept_item_tokens
+            .iter()
+            .enumerate()
+            .filter(|(i, t)| *i != idx && t.is_some())
+            .map(|(_, t)| t.as_deref().unwrap())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let child_ancestor_tokens = format!("{} {}", ancestor_scope_tokens, &sibling_tokens);
         prune_unused_items_in_scope(
             child_items,
             &extend_module_path(current_module_path, &child_name),
             &child_refs,
             crate_name,
             binary_source,
+            &child_ancestor_tokens,
         );
     }
 
-    prune_unused_impl_methods_in_scope(items, &keep, current_module_path, binary_source);
+    prune_unused_impl_methods_in_scope(items, &keep, current_module_path, binary_source, ancestor_scope_tokens);
 
     let mut trimmed = Vec::with_capacity(items.len());
     for (idx, mut item) in mem::take(items).into_iter().enumerate() {
@@ -1475,6 +1504,12 @@ fn compute_required_direct_modules(
                 &reexport_to_child,
                 &macro_to_child,
             ) {
+                // Skip self-referential deps: when a module's internal $crate::
+                // references resolve back to itself, they are not external
+                // requirements and should not become entry refs for that module.
+                if next_child == child {
+                    continue;
+                }
                 child_entry_refs
                     .entry(next_child.clone())
                     .or_default()
@@ -2162,12 +2197,17 @@ fn prune_unused_impl_methods_in_scope(
     keep: &[bool],
     _current_module_path: &[String],
     binary_source: &str,
+    ancestor_scope_tokens: &str,
 ) {
     let scope_tokens = items
         .iter()
         .enumerate()
         .filter(|(idx, item)| {
-            keep[*idx] && !matches!(item, syn::Item::Impl(_))
+            // Keep non-impl items and trait impls (which aren't pruned but may
+            // reference inherent methods, e.g. Default::default calling new_with_seed).
+            // Only exclude inherent impls since those are the targets of pruning.
+            keep[*idx]
+                && !matches!(item, syn::Item::Impl(item_impl) if item_impl.trait_.is_none())
         })
         .map(|(_, item)| item.to_token_stream().to_string())
         .collect::<Vec<_>>();
@@ -2213,6 +2253,12 @@ fn prune_unused_impl_methods_in_scope(
                     .into_iter(),
             );
         }
+        // Also scan ancestor/sibling scope tokens so that cross-module method
+        // references (e.g. random_generator calling rng.rand64()) are visible.
+        pending.extend(
+            collect_candidate_name_mentions(ancestor_scope_tokens, &candidate_names, &HashSet::new())
+                .into_iter(),
+        );
 
         let mut reachable = HashSet::<String>::new();
         while let Some(name) = pending.pop() {
