@@ -19,8 +19,6 @@ The codebase is derived from:
 
 - Rust toolchain
 
-Install the bundler from crates.io:
-
 ## Typical workflow
 
 1. Edit the target binary, for example `src/bin/a.rs` or `src/bin/main.rs`.
