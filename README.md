@@ -18,13 +18,8 @@ The codebase is derived from:
 ## Prerequisites
 
 - Rust toolchain
-- `rust_bundler_cp`
 
 Install the bundler from crates.io:
-
-```bash
-cargo install rust_bundler_cp
-```
 
 ## Typical workflow
 
