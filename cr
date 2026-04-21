@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tempfile
 from pathlib import Path
 
 import tomllib
@@ -43,6 +44,8 @@ def get_time_str():
 
 BUNDLING_TIME = get_time_str()
 
+quiet = False
+bench = False
 
 def check_rust_toolkit():
     # Use WSL to skip it is a bit hacky
@@ -100,6 +103,8 @@ def resolve_binary(binary_arg):
     available = ", ".join(sorted(binaries))
     print(f"Unknown binary '{binary_arg}'. Available binaries: {available}")
     exit(1)
+
+
 def bundle(bundler, binary, edition) -> Path:
     output_path = TEMP_DIRECTORY / binary
     command = [bundler, "--input", ".", "--binary", binary, "--edition", edition]
@@ -138,7 +143,21 @@ def compile_rs(rs_file, edition):
 
 
 def run_with_timing(binary_path):
-    command = f"time -p {shlex.quote(str(binary_path))}"
+    global quiet, bench
+
+    if bench:
+        data = sys.stdin.buffer.read()
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
+            f.write(data)
+            tmpfile = f.name
+
+        bench_cmd = f"{shlex.quote(str(binary_path))} < {shlex.quote(tmpfile)}"
+        command = f"hyperfine --shell=bash {shlex.quote(bench_cmd)}"
+    else:
+        command = f"time -p {shlex.quote(str(binary_path))}"
+        if quiet:
+            command += " >/dev/null 2>&1"
+
     subprocess.run(["bash", "-c", command], check=True)
 
 
@@ -185,6 +204,12 @@ def parse_args(argv):
         arg = argv[i]
         if arg == "--reset":
             reset_workspace()
+        elif arg in ("-q", "--quiet"):
+            global quiet
+            quiet = True
+        elif arg in ("-b", "--bench"):
+            global bench
+            bench = True
         elif arg in ("--oj", "--judge"):
             i += 1
             if i >= len(argv):

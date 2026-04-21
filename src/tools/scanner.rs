@@ -31,9 +31,7 @@ pub fn read_all_unchecked(mut reader: impl std::io::Read) -> String {
     reader.read_to_end(&mut buf).expect("io error");
     unsafe { String::from_utf8_unchecked(buf) }
 }
-pub fn read_all_bytes<const BUF_SIZE: usize>(
-    mut reader: impl std::io::Read,
-) -> [u8; BUF_SIZE] {
+pub fn read_all_bytes<const BUF_SIZE: usize>(mut reader: impl std::io::Read) -> [u8; BUF_SIZE] {
     let mut buf = [0u8; BUF_SIZE];
     reader.read_exact(&mut buf).expect("io error");
     buf
@@ -326,9 +324,9 @@ impl IterScan for Usize1 {
 #[derive(Debug, Copy, Clone)]
 pub struct CharWithBase(pub char);
 impl MarkedIterScan for CharWithBase {
-    type Output<'a> = usize;
+    type Output<'a> = u8;
     fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
-        Some((<char as IterScan>::scan(iter)? as u8 - self.0 as u8) as usize)
+        Some(<char as IterScan>::scan(iter)? as u8 - self.0 as u8)
     }
 }
 #[derive(Debug, Copy, Clone)]
@@ -342,12 +340,12 @@ impl IterScan for Chars {
 #[derive(Debug, Copy, Clone)]
 pub struct CharsWithBase(pub char);
 impl MarkedIterScan for CharsWithBase {
-    type Output<'a> = Vec<usize>;
+    type Output<'a> = Vec<u8>;
     fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         Some(
             iter.next()?
                 .chars()
-                .map(|c| (c as u8 - self.0 as u8) as usize)
+                .map(|c| c as u8 - self.0 as u8)
                 .collect(),
         )
     }
@@ -365,9 +363,9 @@ impl IterScan for Byte1 {
 #[derive(Debug, Copy, Clone)]
 pub struct ByteWithBase(pub u8);
 impl MarkedIterScan for ByteWithBase {
-    type Output<'a> = usize;
+    type Output<'a> = u8;
     fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
-        Some((<char as IterScan>::scan(iter)? as u8 - self.0) as usize)
+        Some(<char as IterScan>::scan(iter)? as u8 - self.0)
     }
 }
 #[derive(Debug, Copy, Clone)]
@@ -381,14 +379,9 @@ impl IterScan for Bytes {
 #[derive(Debug, Copy, Clone)]
 pub struct BytesWithBase(pub u8);
 impl MarkedIterScan for BytesWithBase {
-    type Output<'a> = Vec<usize>;
+    type Output<'a> = Vec<u8>;
     fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
-        Some(
-            iter.next()?
-                .bytes()
-                .map(|c| (c - self.0) as usize)
-                .collect(),
-        )
+        Some(iter.next()?.bytes().map(|c| c - self.0).collect())
     }
 }
 #[derive(Debug, Copy, Clone)]
@@ -522,7 +515,7 @@ mod tests {
     #[test]
     fn test_scan() {
         let mut s = Scanner::new("1 2 3 a 1 2 1 1 1.1 2 3");
-        scan!(s, x, y: char, z: Usize1, a: @CharWithBase('a'), b: [usize; 2], c: (usize, @CharWithBase('0')), d: @Splitted::<usize, _>::new('.'), e: [usize; const 2]);
+        scan!(s, x, y: char, z: Usize1, a: @CharWithBase('a'), b: [usize; 2], c: (u8, @CharWithBase('0')), d: @Splitted::<usize, _>::new('.'), e: [usize; const 2]);
         assert_eq!(x, 1);
         assert_eq!(y, '2');
         assert_eq!(z, 2);
@@ -532,7 +525,7 @@ mod tests {
         assert_eq!(d, vec![1, 1]);
         assert_eq!(e, [2, 3]);
 
-        scan!(src = "12 34", c: Vec<usize> = CharsWithBase('0'), d: [Vec<usize> = CharsWithBase('0'); 1]);
+        scan!(src = "12 34", c: Vec<u8> = CharsWithBase('0'), d: [Vec<u8> = CharsWithBase('0'); 1]);
         assert_eq!(c, vec![1, 2]);
         assert_eq!(d, vec![vec![3, 4]]);
 
@@ -573,7 +566,7 @@ mod tests {
             enum Query: u8 {
                 0 => Noop,
                 1 => Args { i: Usize1, s: char },
-                9 => Complex { n: usize, c: [(usize, Vec<usize> = CharsWithBase('a')); n] },
+                9 => Complex { n: usize, c: [(usize, Vec<u8> = CharsWithBase('a')); n] },
             }
         }
         define_enum_scan! {
