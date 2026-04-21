@@ -10,7 +10,7 @@ use syn::__private::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::visit_mut::VisitMut;
 
-use log::{debug, info, error};
+use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
 
 mod cargo_loader;
@@ -54,7 +54,11 @@ pub fn bundle_specific_binary<P: AsRef<Path>>(
             prune_unused_support_items(&mut support_file, crate_name, &binary_ref_source);
             prune_tools_support_macros(&mut support_file, &binary_ref_source);
         }
-        Some(render_support_code(support_file, crate_name, needs_crate_alias))
+        Some(render_support_code(
+            support_file,
+            crate_name,
+            needs_crate_alias,
+        ))
     } else {
         None
     };
@@ -165,7 +169,11 @@ impl<'a> Expander<'a> {
                     &self.entry_refs,
                 );
                 self.child_entry_refs = plan.child_entry_refs.clone();
-                prune_items_with_plan(&self.current_module_path, &mut lib_items, &plan.required_children);
+                prune_items_with_plan(
+                    &self.current_module_path,
+                    &mut lib_items,
+                    &plan.required_children,
+                );
                 new_items.extend(lib_items);
             } else {
                 new_items.push(item);
@@ -197,18 +205,23 @@ impl<'a> Expander<'a> {
             (self.base_path, format!("{}.rs", name)),
             (&new_style_path, format!("{}.rs", name)),
             (&other_base_path, String::from("mod.rs")),
-        ].into_iter()
-            .flat_map(|(base_path, file_name)| {
-                read_file(&base_path.join(file_name)).map(|code| (base_path, code))
-            })
-            .next()
-            .expect("mod not found");
+        ]
+        .into_iter()
+        .flat_map(|(base_path, file_name)| {
+            read_file(&base_path.join(file_name)).map(|code| (base_path, code))
+        })
+        .next()
+        .expect("mod not found");
         info!("expanding mod {} in {}", name, base_path.to_str().unwrap());
         let mut file = syn::parse_file(&code).expect("failed to parse file");
         if self.parent_name == "tools" && name == "main" {
             strip_tools_main_stub(&mut file);
         }
-        let mut current_entry_refs = self.child_entry_refs.get(&name).cloned().unwrap_or_default();
+        let mut current_entry_refs = self
+            .child_entry_refs
+            .get(&name)
+            .cloned()
+            .unwrap_or_default();
         if let Some(source) = &self.binary_ref_source {
             current_entry_refs.extend(collect_named_crate_ref_names_from_tokens(
                 source,
@@ -225,11 +238,7 @@ impl<'a> Expander<'a> {
                 &file.items,
                 &child_expander.entry_refs,
             );
-            prune_items_with_plan(
-                &next_module_path,
-                &mut file.items,
-                &plan.required_children,
-            );
+            prune_items_with_plan(&next_module_path, &mut file.items, &plan.required_children);
             child_expander.child_entry_refs = plan.child_entry_refs;
         }
         child_expander.visit_file_mut(&mut file);
@@ -263,11 +272,9 @@ impl<'a> Expander<'a> {
 fn strip_crate_from_use_tree(tree: &mut syn::UseTree, crate_name: &str) {
     match tree {
         syn::UseTree::Path(path) if path.ident == crate_name => {
-            *tree = syn::parse_str::<syn::UseTree>(&format!(
-                "crate::{}",
-                path.tree.to_token_stream()
-            ))
-            .expect("failed to rewrite crate-qualified use tree");
+            *tree =
+                syn::parse_str::<syn::UseTree>(&format!("crate::{}", path.tree.to_token_stream()))
+                    .expect("failed to rewrite crate-qualified use tree");
             strip_crate_from_use_tree(tree, crate_name);
         }
         syn::UseTree::Path(path) => {
@@ -328,8 +335,15 @@ impl<'a> UsedRootCollector<'a> {
 
 impl<'a> VisitMut for UsedRootCollector<'a> {
     fn visit_path_mut(&mut self, path: &mut syn::Path) {
-        let first = path.segments.first().map(|segment| segment.ident.to_string());
-        let second = path.segments.iter().nth(1).map(|segment| segment.ident.to_string());
+        let first = path
+            .segments
+            .first()
+            .map(|segment| segment.ident.to_string());
+        let second = path
+            .segments
+            .iter()
+            .nth(1)
+            .map(|segment| segment.ident.to_string());
         if let (Some(first), Some(second)) = (first, second) {
             if first == self.crate_name {
                 self.used_roots.insert(second);
@@ -399,9 +413,8 @@ fn ensure_selected_extern_crate(file: &mut syn::File, crate_name: &str) {
         return;
     }
 
-    let extern_crate_item =
-        syn::parse_str::<syn::Item>(&format!("extern crate {};", crate_name))
-            .expect("failed to synthesize extern crate item");
+    let extern_crate_item = syn::parse_str::<syn::Item>(&format!("extern crate {};", crate_name))
+        .expect("failed to synthesize extern crate item");
     file.items.insert(0, extern_crate_item);
 }
 
@@ -500,7 +513,12 @@ fn prune_unused_support_items(file: &mut syn::File, crate_name: &str, binary_sou
     let entry_refs = collect_named_crate_ref_names_from_tokens(binary_source, crate_name, &[]);
     let mut previous = None;
     loop {
-        let snapshot = file.items.iter().map(ToTokens::to_token_stream).collect::<TokenStream>().to_string();
+        let snapshot = file
+            .items
+            .iter()
+            .map(ToTokens::to_token_stream)
+            .collect::<TokenStream>()
+            .to_string();
         if previous.as_ref() == Some(&snapshot) {
             break;
         }
@@ -556,10 +574,9 @@ fn prune_unused_macro_arms(file: &mut syn::File, binary_source: &str) {
     let mut reachable_arms = HashMap::<String, HashSet<usize>>::new();
     let mut seen_invocations = HashSet::<(String, String)>::new();
     let mut pending = collect_macro_invocations_from_source(binary_source, &macro_names);
-    pending.extend(collect_macro_invocations_from_non_definition_items_with_args(
-        &file.items,
-        &macro_names,
-    ));
+    pending.extend(
+        collect_macro_invocations_from_non_definition_items_with_args(&file.items, &macro_names),
+    );
 
     while let Some(invocation) = pending.pop() {
         let key = (invocation.name.clone(), invocation.args.to_string());
@@ -642,7 +659,7 @@ fn with_named_module_file_mut(
 }
 
 fn should_prune_macro_arms(name: &str) -> bool {
-    matches!(name, "prepare" | "main" | "scan" | "scan_value")
+    matches!(name, "prepare" | "main" | "scan")
 }
 
 fn collect_macro_invocations_from_non_definition_items(
@@ -722,10 +739,12 @@ fn collect_macro_invocations_from_non_definition_items_with_args(
             syn::Item::Macro(item_macro) if item_macro.ident.is_some() => {}
             syn::Item::Mod(item_mod) => {
                 if let Some((_, child_items)) = &item_mod.content {
-                    invocations.extend(collect_macro_invocations_from_non_definition_items_with_args(
-                        child_items,
-                        macro_names,
-                    ));
+                    invocations.extend(
+                        collect_macro_invocations_from_non_definition_items_with_args(
+                            child_items,
+                            macro_names,
+                        ),
+                    );
                 }
             }
             _ => invocations.extend(collect_macro_invocations_from_stream(
@@ -822,18 +841,13 @@ fn parse_macro_invocation_at(
     ))
 }
 
-fn collect_named_macro_arms_from_items(
-    items: &[syn::Item],
-) -> HashMap<String, Vec<MacroArm>> {
+fn collect_named_macro_arms_from_items(items: &[syn::Item]) -> HashMap<String, Vec<MacroArm>> {
     let mut defs = HashMap::new();
     collect_named_macro_arms_into(items, &mut defs);
     defs
 }
 
-fn collect_named_macro_arms_into(
-    items: &[syn::Item],
-    defs: &mut HashMap<String, Vec<MacroArm>>,
-) {
+fn collect_named_macro_arms_into(items: &[syn::Item], defs: &mut HashMap<String, Vec<MacroArm>>) {
     for item in items {
         match item {
             syn::Item::Macro(item_macro) => {
@@ -970,10 +984,19 @@ fn rebuild_macro_arms(arms: &[MacroArm], keep: &HashSet<usize>) -> TokenStream {
             continue;
         }
         tokens.extend(std::iter::once(TokenTree::Group(arm.matcher.clone())));
-        tokens.extend(std::iter::once(TokenTree::Punct(Punct::new('=', Spacing::Joint))));
-        tokens.extend(std::iter::once(TokenTree::Punct(Punct::new('>', Spacing::Alone))));
+        tokens.extend(std::iter::once(TokenTree::Punct(Punct::new(
+            '=',
+            Spacing::Joint,
+        ))));
+        tokens.extend(std::iter::once(TokenTree::Punct(Punct::new(
+            '>',
+            Spacing::Alone,
+        ))));
         tokens.extend(std::iter::once(TokenTree::Group(arm.body.clone())));
-        tokens.extend(std::iter::once(TokenTree::Punct(Punct::new(';', Spacing::Alone))));
+        tokens.extend(std::iter::once(TokenTree::Punct(Punct::new(
+            ';',
+            Spacing::Alone,
+        ))));
     }
     tokens
 }
@@ -1045,18 +1068,15 @@ fn prune_unused_items_in_scope(
             &macro_item_names,
         );
         let defined_names = item_infos[idx].defined_names.clone();
-        item_infos[idx].deps.retain(|name| !defined_names.contains(name));
-        item_infos[idx].child_entry_refs = collect_child_entry_refs_from_item(
-            item,
-            current_module_path,
-            &child_module_names,
-        );
-        item_infos[idx].use_binding_to_child = collect_use_binding_to_child(
-            item,
-            current_module_path,
-            &child_infos,
-        );
-        item_infos[idx].always_keep = should_always_keep_item(item, crate_name, current_module_path);
+        item_infos[idx]
+            .deps
+            .retain(|name| !defined_names.contains(name));
+        item_infos[idx].child_entry_refs =
+            collect_child_entry_refs_from_item(item, current_module_path, &child_module_names);
+        item_infos[idx].use_binding_to_child =
+            collect_use_binding_to_child(item, current_module_path, &child_infos);
+        item_infos[idx].always_keep =
+            should_always_keep_item(item, crate_name, current_module_path);
     }
 
     let mut name_to_indices = HashMap::<String, Vec<usize>>::new();
@@ -1137,9 +1157,12 @@ fn prune_unused_items_in_scope(
             }
         }
 
-        if let Some(child) =
-            resolve_ref_to_child(&name, &child_module_names, &reexport_to_child, &macro_to_child)
-        {
+        if let Some(child) = resolve_ref_to_child(
+            &name,
+            &child_module_names,
+            &reexport_to_child,
+            &macro_to_child,
+        ) {
             child_entry_refs
                 .entry(child.clone())
                 .or_default()
@@ -1206,7 +1229,13 @@ fn prune_unused_items_in_scope(
         );
     }
 
-    prune_unused_impl_methods_in_scope(items, &keep, current_module_path, binary_source, ancestor_scope_tokens);
+    prune_unused_impl_methods_in_scope(
+        items,
+        &keep,
+        current_module_path,
+        binary_source,
+        ancestor_scope_tokens,
+    );
 
     let mut trimmed = Vec::with_capacity(items.len());
     for (idx, mut item) in mem::take(items).into_iter().enumerate() {
@@ -1269,7 +1298,9 @@ fn compact_token_stream(tokens: TokenStream) -> String {
             CompactSurfaceToken::Ident(ident) | CompactSurfaceToken::Literal(ident) => {
                 compact.push_str(ident);
             }
-            CompactSurfaceToken::Punct(ch, _) | CompactSurfaceToken::Open(ch) | CompactSurfaceToken::Close(ch) => {
+            CompactSurfaceToken::Punct(ch, _)
+            | CompactSurfaceToken::Open(ch)
+            | CompactSurfaceToken::Close(ch) => {
                 compact.push(*ch);
             }
         }
@@ -1330,8 +1361,7 @@ fn compact_tokens_need_space(prev: &CompactSurfaceToken, curr: &CompactSurfaceTo
         return true;
     }
     if matches!(prev, CompactSurfaceToken::Close(_))
-        && (compact_token_is_wordlike(curr)
-            || matches!(curr, CompactSurfaceToken::Punct('#', _)))
+        && (compact_token_is_wordlike(curr) || matches!(curr, CompactSurfaceToken::Punct('#', _)))
     {
         return true;
     }
@@ -1669,9 +1699,12 @@ fn compute_required_direct_modules(
     let mut child_entry_refs = HashMap::<String, HashSet<String>>::new();
     let mut stack = Vec::<String>::new();
     for name in initial_refs {
-        if let Some(child) =
-            resolve_ref_to_child(&name, &child_module_names, &reexport_to_child, &macro_to_child)
-        {
+        if let Some(child) = resolve_ref_to_child(
+            &name,
+            &child_module_names,
+            &reexport_to_child,
+            &macro_to_child,
+        ) {
             child_entry_refs
                 .entry(child.clone())
                 .or_default()
@@ -1764,11 +1797,8 @@ fn should_keep_use_item(
     child_module_names: &HashSet<String>,
     required_children: &HashSet<String>,
 ) -> bool {
-    let referenced_children = collect_child_module_refs_from_item(
-        item,
-        current_module_path,
-        child_module_names,
-    );
+    let referenced_children =
+        collect_child_module_refs_from_item(item, current_module_path, child_module_names);
     referenced_children.is_empty()
         || referenced_children
             .iter()
@@ -1815,22 +1845,16 @@ fn build_reexport_to_child(
         let syn::Item::Use(item_use) = item else {
             continue;
         };
-        for (name, child) in collect_reexported_names_from_use_item(
-            item_use,
-            current_module_path,
-            child_infos,
-        ) {
+        for (name, child) in
+            collect_reexported_names_from_use_item(item_use, current_module_path, child_infos)
+        {
             insert_unique_mapping(&mut reexport_to_child, name, child);
         }
     }
     reexport_to_child
 }
 
-fn insert_unique_mapping(
-    map: &mut HashMap<String, Option<String>>,
-    name: String,
-    child: String,
-) {
+fn insert_unique_mapping(map: &mut HashMap<String, Option<String>>, name: String, child: String) {
     match map.get_mut(&name) {
         Some(slot) => *slot = None,
         None => {
@@ -2096,7 +2120,9 @@ fn collect_item_defined_names(
         syn::Item::TraitAlias(item) => HashSet::from([item.ident.to_string()]),
         syn::Item::Type(item) => HashSet::from([item.ident.to_string()]),
         syn::Item::Union(item) => HashSet::from([item.ident.to_string()]),
-        syn::Item::Use(item_use) => collect_use_item_defined_names(item_use, current_module_path, child_infos),
+        syn::Item::Use(item_use) => {
+            collect_use_item_defined_names(item_use, current_module_path, child_infos)
+        }
         syn::Item::Verbatim(_) => HashSet::new(),
         _ => HashSet::new(),
     }
@@ -2133,7 +2159,11 @@ fn collect_type_path_ident(ty: &syn::Type) -> Option<String> {
     match ty {
         syn::Type::Group(item) => collect_type_path_ident(&item.elem),
         syn::Type::Paren(item) => collect_type_path_ident(&item.elem),
-        syn::Type::Path(item) => item.path.segments.last().map(|segment| segment.ident.to_string()),
+        syn::Type::Path(item) => item
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string()),
         syn::Type::Reference(item) => collect_type_path_ident(&item.elem),
         _ => None,
     }
@@ -2146,7 +2176,9 @@ fn collect_use_item_defined_names(
 ) -> HashSet<String> {
     let mut names = HashSet::new();
     collect_use_tree_binding_names(&item_use.tree, &mut names);
-    for (name, _) in collect_reexported_names_from_use_item(item_use, current_module_path, child_infos) {
+    for (name, _) in
+        collect_reexported_names_from_use_item(item_use, current_module_path, child_infos)
+    {
         names.insert(name);
     }
     names
@@ -2248,7 +2280,8 @@ fn collect_child_module_refs_from_tokens(
                 extend_child_module_refs(&mut refs, &parts, start, child_module_names);
             }
         }
-        if parts[i] == "$" && parts.get(i + 1) == Some(&"crate") && parts.get(i + 2) == Some(&"::") {
+        if parts[i] == "$" && parts.get(i + 1) == Some(&"crate") && parts.get(i + 2) == Some(&"::")
+        {
             if let Some(start) = consume_prefixed_module_path(&parts, i + 3, current_module_path) {
                 extend_child_module_refs(&mut refs, &parts, start, child_module_names);
             }
@@ -2298,7 +2331,8 @@ fn collect_child_entry_refs_from_tokens(
                 extend_child_entry_refs(&mut refs, &parts, start, child_module_names);
             }
         }
-        if parts[i] == "$" && parts.get(i + 1) == Some(&"crate") && parts.get(i + 2) == Some(&"::") {
+        if parts[i] == "$" && parts.get(i + 1) == Some(&"crate") && parts.get(i + 2) == Some(&"::")
+        {
             if let Some(start) = consume_prefixed_module_path(&parts, i + 3, current_module_path) {
                 extend_child_entry_refs(&mut refs, &parts, start, child_module_names);
             }
@@ -2352,7 +2386,11 @@ fn collect_use_binding_to_child(
         .collect()
 }
 
-fn should_always_keep_item(item: &syn::Item, crate_name: &str, current_module_path: &[String]) -> bool {
+fn should_always_keep_item(
+    item: &syn::Item,
+    crate_name: &str,
+    current_module_path: &[String],
+) -> bool {
     match item {
         syn::Item::ExternCrate(item) => {
             if !current_module_path.is_empty() {
@@ -2495,8 +2533,7 @@ fn prune_unused_impl_methods_in_scope(
             // Keep non-impl items and trait impls (which aren't pruned but may
             // reference inherent methods, e.g. Default::default calling new_with_seed).
             // Only exclude inherent impls since those are the targets of pruning.
-            keep[*idx]
-                && !matches!(item, syn::Item::Impl(item_impl) if item_impl.trait_.is_none())
+            keep[*idx] && !matches!(item, syn::Item::Impl(item_impl) if item_impl.trait_.is_none())
         })
         .map(|(_, item)| item.to_token_stream().to_string())
         .collect::<Vec<_>>();
@@ -2529,13 +2566,10 @@ fn prune_unused_impl_methods_in_scope(
             continue;
         }
 
-        let mut pending = collect_candidate_name_mentions(
-            binary_source,
-            &candidate_names,
-            &HashSet::new(),
-        )
-        .into_iter()
-        .collect::<Vec<_>>();
+        let mut pending =
+            collect_candidate_name_mentions(binary_source, &candidate_names, &HashSet::new())
+                .into_iter()
+                .collect::<Vec<_>>();
         for tokens in &scope_tokens {
             pending.extend(
                 collect_candidate_name_mentions(tokens, &candidate_names, &HashSet::new())
@@ -2546,8 +2580,12 @@ fn prune_unused_impl_methods_in_scope(
         // references (e.g. random_generator calling rng.rand64()) are visible.
         if module_path_is_tools(current_module_path) {
             pending.extend(
-                collect_candidate_name_mentions(ancestor_scope_tokens, &candidate_names, &HashSet::new())
-                    .into_iter(),
+                collect_candidate_name_mentions(
+                    ancestor_scope_tokens,
+                    &candidate_names,
+                    &HashSet::new(),
+                )
+                .into_iter(),
             );
         }
 
@@ -2561,19 +2599,17 @@ fn prune_unused_impl_methods_in_scope(
                     continue;
                 };
                 for impl_item in &item_impl.items {
-                    let defined_names = collect_impl_item_defined_names(std::slice::from_ref(impl_item));
+                    let defined_names =
+                        collect_impl_item_defined_names(std::slice::from_ref(impl_item));
                     if !defined_names.contains(&name) {
                         continue;
                     }
                     let tokens = impl_item.to_token_stream().to_string();
-                    let deps = collect_candidate_name_mentions(
-                        &tokens,
-                        &candidate_names,
-                        &HashSet::new(),
-                    )
-                    .into_iter()
-                    .filter(|dep| !defined_names.contains(dep))
-                    .collect::<Vec<_>>();
+                    let deps =
+                        collect_candidate_name_mentions(&tokens, &candidate_names, &HashSet::new())
+                            .into_iter()
+                            .filter(|dep| !defined_names.contains(dep))
+                            .collect::<Vec<_>>();
                     pending.extend(deps);
                 }
             }
@@ -2587,9 +2623,7 @@ fn prune_unused_impl_methods_in_scope(
                 let defined_names =
                     collect_impl_item_defined_names(std::slice::from_ref(impl_item));
                 defined_names.is_empty()
-                    || defined_names
-                        .iter()
-                        .any(|name| reachable.contains(name))
+                    || defined_names.iter().any(|name| reachable.contains(name))
             });
         }
     }
@@ -2641,15 +2675,10 @@ fn collect_module_info_from_items(
         let tokens = item.to_token_stream().to_string();
         info.deps
             .extend(collect_ref_names_from_tokens(&tokens, current_module_path));
-        for (child, refs) in collect_child_entry_refs_from_tokens(
-            &tokens,
-            current_module_path,
-            sibling_module_names,
-        ) {
-            info.child_entry_refs
-                .entry(child)
-                .or_default()
-                .extend(refs);
+        for (child, refs) in
+            collect_child_entry_refs_from_tokens(&tokens, current_module_path, sibling_module_names)
+        {
+            info.child_entry_refs.entry(child).or_default().extend(refs);
         }
         if let syn::Item::Macro(item_macro) = item {
             if is_macro_export(item_macro) {
@@ -2659,7 +2688,8 @@ fn collect_module_info_from_items(
             }
         }
         if let syn::Item::Mod(item_mod) = item {
-            let (child_base_path, child_items) = load_module_items(base_path, parent_name, item_mod);
+            let (child_base_path, child_items) =
+                load_module_items(base_path, parent_name, item_mod);
             collect_module_info_from_items(
                 &child_base_path,
                 &item_mod.ident.to_string(),
@@ -2699,7 +2729,8 @@ fn collect_ref_names_from_tokens(tokens: &str, current_module_path: &[String]) -
                 refs.extend(collect_names_after_path(&parts, i + 2));
             }
         }
-        if parts[i] == "$" && parts.get(i + 1) == Some(&"crate") && parts.get(i + 2) == Some(&"::") {
+        if parts[i] == "$" && parts.get(i + 1) == Some(&"crate") && parts.get(i + 2) == Some(&"::")
+        {
             if let Some(start) = consume_prefixed_module_path(&parts, i + 3, current_module_path) {
                 refs.extend(collect_names_after_path(&parts, start));
             } else {
@@ -2804,9 +2835,8 @@ fn is_ident_token(token: &str) -> bool {
 }
 
 fn normalized_ident_token(token: &str) -> Option<String> {
-    let token = token.trim_matches(|ch: char| {
-        matches!(ch, ',' | ';' | '(' | ')' | '[' | ']' | '{' | '}')
-    });
+    let token =
+        token.trim_matches(|ch: char| matches!(ch, ',' | ';' | '(' | ')' | '[' | ']' | '{' | '}'));
     if is_ident_token(token) {
         Some(token.to_string())
     } else {
@@ -2861,21 +2891,21 @@ fn debug_str_item(it: &syn::Item) -> String {
         syn::Item::ExternCrate(_e) => {
             // eprintln!("{:?}", e); //TODO-> too hacky
             "extern_crate"
-        },
+        }
         syn::Item::Use(_e) => {
             // eprintln!("{:?}", e); //TODO-> too hacky
             "use"
-        },
+        }
         syn::Item::Fn(_e) => {
             // eprintln!("{:?}", e); //TODO-> too hacky
             "Fn"
-        },
+        }
         syn::Item::Mod(e) => {
             e.ident.to_string();
             // eprintln!("{:?}", e); //TODO-> too hacky
             // return "Mod(";
             return format!("Mod ({})", e.ident.to_string());
-        },
+        }
         _ => {
             // eprintln!("{:?}", it); //TODO-> too hacky
             "Others"
@@ -2889,26 +2919,23 @@ pub enum BundlerConfig {
     RustEdition,
 }
 
-
 /*
 The test cases below is also considered as documents and examples.
 */
 
 #[cfg(test)]
 mod expander_test {
+    use crate::{
+        compute_required_direct_modules, ensure_trailing_newline, file_references_selected_crate,
+        prune_unused_macro_arms, prune_unused_support_items, prune_unused_support_macros,
+        render_support_code, rewrite_for_edition, strip_redundant_support, strip_tools_main_stub,
+        Expander,
+    };
     use std::collections::HashSet;
     use std::path::Path;
-    use syn::{Expr, File, parse_str};
-    use crate::{
-        Expander, compute_required_direct_modules, ensure_trailing_newline,
-        file_references_selected_crate, prune_unused_macro_arms,
-        prune_unused_support_items, prune_unused_support_macros, render_support_code,
-        rewrite_for_edition, strip_redundant_support, strip_tools_main_stub,
-    };
     use syn::__private::ToTokens;
     use syn::visit_mut::VisitMut;
-
-
+    use syn::{parse_str, Expr, File};
 
     #[test]
     fn test_create() {
@@ -2929,8 +2956,7 @@ mod expander_test {
         expander
     }
 
-
-    fn read_source_code () -> File {
+    fn read_source_code() -> File {
         let src_path = "tests/testdata/input/rust_codeforce_template/src/main.rs";
         let syntax_tree =
             crate::read_file(Path::new(src_path)).expect("failed to read binary target source");
@@ -2943,7 +2969,10 @@ mod expander_test {
         let mut expander = create_expander();
         let mut expr: Expr = parse_str("my_lib::tools::Scanner::new(&buf)").unwrap();
         expander.visit_expr_mut(&mut expr);
-        assert_eq!(expr.into_token_stream().to_string(), "tools :: Scanner :: new (& buf)");
+        assert_eq!(
+            expr.into_token_stream().to_string(),
+            "tools :: Scanner :: new (& buf)"
+        );
     }
 
     #[test]
@@ -2951,7 +2980,10 @@ mod expander_test {
         let mut expander = create_expander();
         let mut expr: Expr = parse_str("my_lib.signed_pow(exp_p)").unwrap();
         expander.visit_expr_mut(&mut expr);
-        assert_eq!(expr.into_token_stream().to_string(), "my_lib . signed_pow (exp_p)");
+        assert_eq!(
+            expr.into_token_stream().to_string(),
+            "my_lib . signed_pow (exp_p)"
+        );
     }
 
     #[test]
@@ -2980,7 +3012,10 @@ mod expander_test {
     fn test_ensure_trailing_newline_preserves_multiline_binary_source() {
         let source = "pub fn solve() {\n    cp::prepare!();\n}\n\ncp::main!();".to_string();
         let code = ensure_trailing_newline(source);
-        assert_eq!(code, "pub fn solve() {\n    cp::prepare!();\n}\n\ncp::main!();\n");
+        assert_eq!(
+            code,
+            "pub fn solve() {\n    cp::prepare!();\n}\n\ncp::main!();\n"
+        );
     }
 
     #[test]
@@ -3579,13 +3614,8 @@ mod expander_test {
         )
         .unwrap();
         let entry_refs = HashSet::from([String::from("data_structure")]);
-        let plan = compute_required_direct_modules(
-            Path::new("."),
-            "",
-            &[],
-            &file.items,
-            &entry_refs,
-        );
+        let plan =
+            compute_required_direct_modules(Path::new("."), "", &[], &file.items, &entry_refs);
         assert!(plan.required_children.contains("data_structure"));
         assert!(plan.required_children.contains("algebra"));
         assert_eq!(
@@ -3615,13 +3645,8 @@ mod expander_test {
         )
         .unwrap();
         let entry_refs = HashSet::from([String::from("data_structure")]);
-        let plan = compute_required_direct_modules(
-            Path::new("."),
-            "",
-            &[],
-            &file.items,
-            &entry_refs,
-        );
+        let plan =
+            compute_required_direct_modules(Path::new("."), "", &[], &file.items, &entry_refs);
         assert!(plan.required_children.contains("algebra"));
         assert_eq!(
             plan.child_entry_refs.get("algebra"),

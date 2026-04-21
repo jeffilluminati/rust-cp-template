@@ -15,6 +15,12 @@ pub fn read_stdin_all_unchecked() -> String {
     std::io::stdin().read_to_end(&mut buf).expect("io error");
     unsafe { String::from_utf8_unchecked(buf) }
 }
+pub fn read_stdin_all_bytes<const BUF_SIZE: usize>() -> [u8; BUF_SIZE] {
+    use std::io::Read as _;
+    let mut buf = [0u8; BUF_SIZE];
+    std::io::stdin().read_exact(&mut buf).expect("io error");
+    buf
+}
 pub fn read_all(mut reader: impl std::io::Read) -> String {
     let mut s = String::new();
     reader.read_to_string(&mut s).expect("io error");
@@ -24,6 +30,13 @@ pub fn read_all_unchecked(mut reader: impl std::io::Read) -> String {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf).expect("io error");
     unsafe { String::from_utf8_unchecked(buf) }
+}
+pub fn read_all_bytes<const BUF_SIZE: usize>(
+    mut reader: impl std::io::Read,
+) -> [u8; BUF_SIZE] {
+    let mut buf = [0u8; BUF_SIZE];
+    reader.read_exact(&mut buf).expect("io error");
+    buf
 }
 pub fn read_stdin_line() -> String {
     let mut s = String::new();
