@@ -22,14 +22,11 @@ mod main_macros {
     #[allow(clippy::crate_in_macro_def)]
     macro_rules! prepare {
         (@output ($dol:tt)) => {
-            #[allow(unused_imports)]
-            use std::io::Write as _;
-            let __out = std::io::stdout();
             #[allow(unused_mut,unused_variables)]
-            let mut __out = std::io::BufWriter::new(__out.lock());
+            let mut __out = $crate::tools::FastOutput::stdout();
             #[allow(unused_macros)]
             /// [`iter_print!`] for buffered stdout.
-            macro_rules! pp { ($dol($dol t:tt)*) => { $dol crate::iter_print!(__out, $dol($dol t)*) } }
+            macro_rules! pp { ($dol($dol t:tt)*) => { $dol crate::fast_print!(&mut __out, $dol($dol t)*) } }
             #[cfg(debug_assertions)]
             #[allow(unused_macros)]
             /// [`iter_print!`] for buffered stderr. Do nothing in release mode.
@@ -40,7 +37,7 @@ mod main_macros {
                     let __err = std::io::stderr();
                     #[allow(unused_mut,unused_variables)]
                     let mut __err = std::io::BufWriter::new(__err.lock());
-                    $dol crate::iter_print!(__err, $dol($dol t)*);
+                    $dol crate::fast_print!(__err, $dol($dol t)*);
                     let _ = __err.flush();
                 }}
             }

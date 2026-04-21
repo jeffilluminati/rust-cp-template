@@ -535,6 +535,23 @@ where
     }
 }
 
+impl<W> Write for FastOutput<W>
+where
+    W: Write,
+{
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.buf.write(buf)
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.buf.write_all(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.buf.flush()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

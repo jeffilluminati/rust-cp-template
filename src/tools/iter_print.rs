@@ -68,6 +68,7 @@ impl_iter_print_tuple!(A a B b C c D d E e F f G g H h I i J j K k);
 /// - `@lf`: alias for `@sep '\n'`
 /// - `@sp`: alias for `@sep ' '`
 /// - `@fmt ($lit, $($expr),*)`: print `format!($lit, $($expr),*)`
+/// - `@bytes $expr`, `@b $expr`: print byte slice
 /// - `@flush`: flush writer (auto insert `!`)
 /// - `@it $expr`: print iterator
 /// - `@it1 $expr`: print iterator as 1-indexed
@@ -90,6 +91,15 @@ macro_rules! iter_print {
     };
     (@@item $writer:expr, $sep:expr, $is_head:expr, $e:expr) => {
         $crate::iter_print!(@@fmt $writer, $sep, $is_head, ("{}", $e));
+    };
+    (@@bytes $writer:expr, $sep:expr, $is_head:expr, $bytes:expr) => {{
+        if !$is_head {
+            ::std::write!($writer, "{}", $sep).expect("io error");
+        }
+        $writer.write_all(($bytes).as_ref()).expect("io error");
+    }};
+    (@@b $writer:expr, $sep:expr, $is_head:expr, $bytes:expr) => {
+        $crate::iter_print!(@@bytes $writer, $sep, $is_head, $bytes);
     };
     (@@line_feed $writer:expr $(,)?) => {
         ::std::writeln!($writer).expect("io error");
@@ -158,6 +168,8 @@ macro_rules! iter_print {
     (@@assert_tag item) => {};
     (@@assert_tag it) => {};
     (@@assert_tag it1) => {};
+    (@@assert_tag bytes) => {};
+    (@@assert_tag b) => {};
     (@@assert_tag it2d) => {};
     (@@assert_tag tup) => {};
     (@@assert_tag ittup) => {};
@@ -252,6 +264,7 @@ mod tests {
             @ns @ittup (0..2).map(|i| (i * 2 + 20, i * 2 + 21));
             @flush,
             @bw (b'a' [0, 1, 2].iter().cloned());
+            @b b"xy";
             @sp @it1 (0..2)
         );
         let expected = r#"1 2.3.4
@@ -267,6 +280,7 @@ mod tests {
 2021
 2223
 abc
+xy
 1 2
 "#;
         assert_eq!(expected, String::from_utf8_lossy(&buf));
