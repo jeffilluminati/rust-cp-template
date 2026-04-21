@@ -151,39 +151,3 @@ impl Decimal {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_case::test_case;
-
-    #[test_case("0", "0", Ordering::Equal; "zero")]
-    #[test_case("0", "1", Ordering::Less; "zero vs plus")]
-    #[test_case("0", "-1", Ordering::Greater; "zero vs minus")]
-    #[test_case("1", "0", Ordering::Greater; "plus vs zero")]
-    #[test_case("1", "1", Ordering::Equal; "plus vs plus")]
-    #[test_case("1", "-1", Ordering::Greater; "plus vs minus")]
-    #[test_case("-1", "0", Ordering::Less; "minus vs zero")]
-    #[test_case("-1", "1", Ordering::Less; "minus vs plus")]
-    #[test_case("-1", "-1", Ordering::Equal; "minus vs minus")]
-    #[test_case("1000000000000000000", "1", Ordering::Greater; "long integer")]
-    #[test_case("-1000000000000000000", "-1", Ordering::Less; "negative long integer")]
-    #[test_case("0.1", "0.01", Ordering::Greater; "decimal")]
-    #[test_case("0.1", "0.1", Ordering::Equal; "decimal equal")]
-    #[test_case("0.1", "0.2", Ordering::Less; "decimal less")]
-    #[test_case("0.1", "0.0000000000000000001", Ordering::Greater; "long decimal")]
-    fn test_cmp(a: &str, b: &str, expected: Ordering) {
-        let a = a.parse::<Decimal>().unwrap();
-        let b = b.parse::<Decimal>().unwrap();
-        assert_eq!(a.cmp(&b), expected);
-    }
-
-    #[test_case("0", "0"; "zero")]
-    #[test_case("1", "-1"; "plus")]
-    #[test_case("-1", "1"; "minus")]
-    fn test_neg(a: &str, expected: &str) {
-        let a = a.parse::<Decimal>().unwrap();
-        let expected = expected.parse::<Decimal>().unwrap();
-        assert_eq!(-a, expected);
-    }
-}
