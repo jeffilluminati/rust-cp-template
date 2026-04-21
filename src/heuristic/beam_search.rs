@@ -203,9 +203,9 @@ where
             assert!(node.hash == self.state.hash());
 
             for op in self.state.candidates() {
-                if let Some((score, hash, accept)) = self
-                    .state
-                    .soft_update(op.clone(), node.score.clone(), node.hash.clone())
+                if let Some((score, hash, accept)) =
+                    self.state
+                        .soft_update(op.clone(), node.score.clone(), node.hash.clone())
                 {
                     if !set.contains(&hash) {
                         cands.push(Candidate {

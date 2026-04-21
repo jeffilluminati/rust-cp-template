@@ -1,7 +1,7 @@
 //! binary operaions
 
 pub use self::max_operation_impl::MaxOperation;
-use super::{Bounded, One, Zero, magma::*};
+use super::{magma::*, Bounded, One, Zero};
 mod max_operation_impl {
     use super::*;
     use std::marker::PhantomData;

@@ -363,7 +363,7 @@ mod tests {
     use super::*;
     use crate::{
         algebra::{AdditiveOperation, LinearOperation, Magma as _, Unital as _},
-        num::{Zero as _, mint_basic::MInt998244353},
+        num::{mint_basic::MInt998244353, Zero as _},
         tools::Xorshift,
     };
 

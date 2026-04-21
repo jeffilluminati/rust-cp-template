@@ -636,7 +636,11 @@ unsafe fn assume_init_vec<T>(mut vec: Vec<MaybeUninit<T>>) -> Vec<T> {
 }
 
 fn bit_ceil(x: u64) -> u64 {
-    if x <= 1 { 1 } else { x.next_power_of_two() }
+    if x <= 1 {
+        1
+    } else {
+        x.next_power_of_two()
+    }
 }
 
 fn rooted_children(graph: &UndirectedSparseGraph, root: usize) -> RootedInfo {
@@ -697,7 +701,7 @@ mod tests {
     use crate::{
         algebra::{Associative, Magma, Unital},
         graph::UndirectedSparseGraph,
-        num::{One, Zero, mint_basic::MInt998244353},
+        num::{mint_basic::MInt998244353, One, Zero},
         tools::Xorshift,
         tree::{PathTree, PruferSequence, StarTree},
     };

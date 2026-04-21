@@ -42,14 +42,22 @@ impl AdjacencyListGraph {
     }
 }
 
-pub struct AdjacencyListGraphScanner<U: IterScan<Output = usize>, T: IterScan> {
+pub struct AdjacencyListGraphScanner<U, T>
+where
+    for<'a> U: IterScan<Output<'a> = usize>,
+    T: IterScan,
+{
     vsize: usize,
     esize: usize,
     directed: bool,
     _marker: PhantomData<fn() -> (U, T)>,
 }
 
-impl<U: IterScan<Output = usize>, T: IterScan> AdjacencyListGraphScanner<U, T> {
+impl<U, T> AdjacencyListGraphScanner<U, T>
+where
+    for<'a> U: IterScan<Output<'a> = usize>,
+    T: IterScan,
+{
     pub fn new(vsize: usize, esize: usize, directed: bool) -> Self {
         Self {
             vsize,
@@ -60,9 +68,13 @@ impl<U: IterScan<Output = usize>, T: IterScan> AdjacencyListGraphScanner<U, T> {
     }
 }
 
-impl<U: IterScan<Output = usize>, T: IterScan> MarkedIterScan for AdjacencyListGraphScanner<U, T> {
-    type Output = (AdjacencyListGraph, Vec<<T as IterScan>::Output>);
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output> {
+impl<U, T> MarkedIterScan for AdjacencyListGraphScanner<U, T>
+where
+    for<'a> U: IterScan<Output<'a> = usize>,
+    T: IterScan,
+{
+    type Output<'a> = (AdjacencyListGraph, Vec<<T as IterScan>::Output<'a>>);
+    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         let mut graph = AdjacencyListGraph::new(self.vsize);
         let mut rest = Vec::with_capacity(self.esize);
         for _ in 0..self.esize {

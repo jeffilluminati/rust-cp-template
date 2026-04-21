@@ -56,7 +56,7 @@ use crate::algebra::{
 };
 use crate::algorithm::{BitDpExt, SliceBisectExt};
 use crate::num::{Bounded, RangeBoundsExt};
-use crate::tools::{Comparator, Xorshift, comparator};
+use crate::tools::{comparator, Comparator, Xorshift};
 mod accumulate;
 mod allocator;
 mod binary_indexed_tree;

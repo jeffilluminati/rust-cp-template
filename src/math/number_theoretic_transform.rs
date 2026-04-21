@@ -1,6 +1,6 @@
-use super::{ConvolveSteps, MInt, MIntBase, MIntConvert, One, Zero, montgomery::*};
+use super::{montgomery::*, ConvolveSteps, MInt, MIntBase, MIntConvert, One, Zero};
 #[cfg(target_arch = "x86_64")]
-use super::{SimdBackend, simd_backend};
+use super::{simd_backend, SimdBackend};
 use std::{
     cell::UnsafeCell,
     marker::PhantomData,

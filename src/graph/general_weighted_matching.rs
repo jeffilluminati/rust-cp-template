@@ -342,7 +342,11 @@ impl BlossomMatching {
     fn step_index(len: usize, j: usize, forward: bool) -> usize {
         if forward {
             let next = j + 1;
-            if next == len { 0 } else { next }
+            if next == len {
+                0
+            } else {
+                next
+            }
         } else if j == 0 {
             len - 1
         } else {
@@ -351,7 +355,11 @@ impl BlossomMatching {
     }
 
     fn dec_index(len: usize, j: usize) -> usize {
-        if j == 0 { len - 1 } else { j - 1 }
+        if j == 0 {
+            len - 1
+        } else {
+            j - 1
+        }
     }
 
     fn expand_blossom(&mut self, b: usize, endstage: bool) {

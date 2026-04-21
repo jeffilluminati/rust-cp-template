@@ -23,7 +23,7 @@ OJ_EDITIONS = {
 }
 RELEASE_RUSTC_FLAGS = [
     "-C",
-    "opt-level=2",
+    "opt-level=3",
     "-C",
     "codegen-units=16",
     "-A",

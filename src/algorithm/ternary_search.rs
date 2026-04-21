@@ -180,7 +180,11 @@ where
     }
     let kv = (l, v0.unwrap_or_else(|| f(l)));
     let kv2 = (r, v3.unwrap_or_else(|| f(r)));
-    if kv2.1 < kv.1 { kv2 } else { kv }
+    if kv2.1 < kv.1 {
+        kv2
+    } else {
+        kv
+    }
 }
 
 #[cfg(test)]

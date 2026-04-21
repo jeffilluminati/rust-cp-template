@@ -14,7 +14,7 @@ pub use self::z_algorithm::Zarray;
 use crate::algebra::{Gf2_63, Invertible, Mersenne61, Monoid, Ring, SemiRing};
 use crate::data_structure::RangeMinimumQuery;
 use crate::math::{Convolve, ConvolveSteps};
-use crate::num::{Zero, montgomery};
+use crate::num::{montgomery, Zero};
 use crate::tools::Xorshift;
 mod knuth_morris_pratt;
 pub mod rolling_hash;

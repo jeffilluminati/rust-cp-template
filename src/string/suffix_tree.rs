@@ -783,12 +783,10 @@ mod tests {
                     assert_eq!(st.node(child_id).parent, node_id);
                 }
             }
-            assert!(
-                substrings
-                    .iter()
-                    .map(|(i, r)| &texts[*i][r.clone()])
-                    .is_sorted()
-            );
+            assert!(substrings
+                .iter()
+                .map(|(i, r)| &texts[*i][r.clone()])
+                .is_sorted());
             let mut expected = vec![];
             for (i, text) in texts.iter().enumerate() {
                 for l in 0..text.len() {
@@ -836,12 +834,10 @@ mod tests {
                     assert_eq!(st.node(child_id).parent, node_id);
                 }
             }
-            assert!(
-                substrings
-                    .iter()
-                    .map(|(i, r)| &texts[*i][r.clone()])
-                    .is_sorted()
-            );
+            assert!(substrings
+                .iter()
+                .map(|(i, r)| &texts[*i][r.clone()])
+                .is_sorted());
             let mut expected = BTreeSet::new();
             for text in &texts {
                 for i in 0..text.len() {

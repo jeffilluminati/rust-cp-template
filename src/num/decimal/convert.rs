@@ -141,8 +141,8 @@ impl Display for Decimal {
 }
 
 impl IterScan for Decimal {
-    type Output = Self;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output> {
+    type Output<'a> = Self;
+    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         iter.next()?.parse().ok()
     }
 }

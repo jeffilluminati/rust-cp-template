@@ -157,9 +157,7 @@ macro_rules! impl_mint_from {
         })*
     };
 }
-impl_mint_from!(
-    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
-);
+impl_mint_from!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 impl<M> Zero for MInt<M>
 where
     M: MIntBase,
@@ -287,9 +285,9 @@ impl<M> IterScan for MInt<M>
 where
     M: MIntConvert + MIntBase<Inner: FromStr>,
 {
-    type Output = Self;
+    type Output<'a> = Self;
     #[inline]
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output> {
+    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         iter.next()?.parse::<MInt<M>>().ok()
     }
 }

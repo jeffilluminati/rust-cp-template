@@ -43,7 +43,7 @@ pub use self::polynomial::*;
 pub use self::pow_prec::PowPrec;
 pub use self::prime::*;
 pub use self::prime_factors::{divisors, prime_factors, prime_factors_flatten};
-pub use self::prime_list::{PrimeList, with_prime_list};
+pub use self::prime_list::{with_prime_list, PrimeList};
 pub use self::prime_table::PrimeTable;
 pub use self::primitive_root::{check_primitive_root, primitive_root};
 pub use self::quotient_array::QuotientArray;
@@ -54,12 +54,12 @@ use crate::algebra::{
 };
 use crate::array;
 use crate::num::{
-    BarrettReduction, Complex, ExtendedGcd, MInt, MIntBase, MIntConvert, One, RangeBoundsExt,
-    Signed, Unsigned, Wrapping, Zero, montgomery,
+    montgomery, BarrettReduction, Complex, ExtendedGcd, MInt, MIntBase, MIntConvert, One,
+    RangeBoundsExt, Signed, Unsigned, Wrapping, Zero,
 };
-use crate::tools::{AssociatedValue, PartialIgnoredOrd, SerdeByteStr, Xorshift};
 #[cfg(target_arch = "x86_64")]
-use crate::tools::{SimdBackend, simd_backend};
+use crate::tools::{simd_backend, SimdBackend};
+use crate::tools::{AssociatedValue, PartialIgnoredOrd, SerdeByteStr, Xorshift};
 mod arbitrary_mod_binomial;
 mod array_vec;
 mod berlekamp_massey;

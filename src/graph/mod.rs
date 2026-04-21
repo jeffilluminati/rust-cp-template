@@ -24,7 +24,7 @@ use crate::{
     algorithm::BitDpExt,
     data_structure::{MergingUnionFind, PairingHeap, UnionFind},
     num::{Bounded, One, Zero},
-    tools::{IterScan, MarkedIterScan, PartialIgnoredOrd, comparator},
+    tools::{comparator, IterScan, MarkedIterScan, PartialIgnoredOrd},
 };
 mod adjacency_list;
 mod bipartite_matching;

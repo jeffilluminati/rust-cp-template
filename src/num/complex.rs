@@ -310,8 +310,8 @@ impl_complex_fold!(impl<T> Sum sum (Complex<T>) Zero zero Add add where Add);
 impl_complex_fold!(impl<T> Product product (Complex<T>) One one Mul mul where Add Sub Mul + Zero + Clone);
 
 impl<T: IterScan> IterScan for Complex<T> {
-    type Output = Complex<<T as IterScan>::Output>;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output> {
+    type Output<'a> = Complex<<T as IterScan>::Output<'a>>;
+    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         Some(Complex::new(
             <T as IterScan>::scan(iter)?,
             <T as IterScan>::scan(iter)?,

@@ -2,7 +2,7 @@
 
 pub use self::automata_learning::*;
 pub use self::baby_step_giant_step::baby_step_giant_step;
-pub use self::binary_search::{Bisect, SliceBisectExt, binary_search, parallel_binary_search};
+pub use self::binary_search::{binary_search, parallel_binary_search, Bisect, SliceBisectExt};
 pub use self::bitdp::{BitDpExt, Combinations, Subsets};
 pub use self::cartesian_tree::CartesianTree;
 pub use self::chromatic_number::IndependentSubSet;
@@ -24,15 +24,15 @@ pub use self::sort::SliceSortExt;
 pub use self::sqrt_decomposition::{
     RangeUpdateRangeFoldSqrtDecomposition, SqrtDecomposition, SqrtDecompositionBuckets,
 };
-pub use self::stern_brocot_tree::{SbtNode, SbtPath, SternBrocotTree, rational_binary_search};
+pub use self::stern_brocot_tree::{rational_binary_search, SbtNode, SbtPath, SternBrocotTree};
 pub use self::ternary_search::{golden_ternary_search, piecewise_ternary_search, ternary_search};
 pub use self::xorbasis::XorBasis;
 pub use self::zero_sum_game::{ZeroSumGame, ZeroSumGameAnalyzer, ZeroSumGamer};
 use crate::algebra::{Field, Group, Invertible, Magma, Monoid, Unital};
-use crate::data_structure::{BitSet, UnionFindBase, union_find};
+use crate::data_structure::{union_find, BitSet, UnionFindBase};
 use crate::graph::UndirectedSparseGraph;
 use crate::math::{Convolve998244353, ConvolveSteps, Matrix};
-use crate::num::{MInt, MIntBase, One, RangeBoundsExt, URational, Unsigned, Zero, montgomery};
+use crate::num::{montgomery, MInt, MIntBase, One, RangeBoundsExt, URational, Unsigned, Zero};
 use crate::tools::{RandomSpec, SerdeByteStr, Xorshift};
 use crate::tree::LevelAncestor;
 mod automata_learning;

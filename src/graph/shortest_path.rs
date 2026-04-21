@@ -496,7 +496,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        num::{Saturating, mint_basic::MInt998244353},
+        num::{mint_basic::MInt998244353, Saturating},
         rand,
         tools::{PartialOrdExt, Xorshift},
     };

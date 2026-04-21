@@ -556,10 +556,10 @@ where
 }
 impl<T> IterScan for Saturating<T>
 where
-    T: IterScan<Output = T>,
+    for<'a> T: IterScan<Output<'a> = T>,
 {
-    type Output = Self;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output> {
+    type Output<'a> = Self;
+    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         T::scan(iter).map(Self)
     }
 }
@@ -852,10 +852,10 @@ where
 }
 impl<T> IterScan for Wrapping<T>
 where
-    T: IterScan<Output = T>,
+    for<'a> T: IterScan<Output<'a> = T>,
 {
-    type Output = Self;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output> {
+    type Output<'a> = Self;
+    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         T::scan(iter).map(Self)
     }
 }

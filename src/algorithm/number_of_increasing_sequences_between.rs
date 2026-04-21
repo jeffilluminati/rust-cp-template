@@ -1,6 +1,6 @@
 use super::{
-    Convolve998244353, ConvolveSteps, MInt, MIntBase, One, Zero,
     montgomery::{MInt998244353, Modulo998244353},
+    Convolve998244353, ConvolveSteps, MInt, MIntBase, One, Zero,
 };
 
 pub fn number_of_increasing_sequences_between<M, C>(a: &[usize], b: &[usize]) -> MInt<M>

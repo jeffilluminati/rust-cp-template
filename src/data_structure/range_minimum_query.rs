@@ -90,7 +90,11 @@ where
     }
 
     fn min_index(&self, a: usize, b: usize) -> usize {
-        if self.data[a] < self.data[b] { a } else { b }
+        if self.data[a] < self.data[b] {
+            a
+        } else {
+            b
+        }
     }
 
     fn argmin_in_block(&self, l: usize, r: usize) -> usize {
