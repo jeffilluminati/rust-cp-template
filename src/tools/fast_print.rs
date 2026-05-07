@@ -234,6 +234,15 @@ macro_rules! fast_print {
             $crate::fast_print!(@@item $writer, $sep, false, item);
         }
     }};
+    (@@itb $writer:expr, $sep:expr, $is_head:expr, $iter_bytes:expr) => {{
+        let mut iter_bytes = $iter_bytes.into_iter();
+        if let Some(item) = iter_bytes.next() {
+            $crate::fast_print!(@@bytes $writer, $sep, $is_head, item);
+        }
+        for item in iter_bytes {
+            $crate::fast_print!(@@bytes $writer, $sep, false, item);
+        }
+    }};
     (@@it_nosep $writer:expr, $iter:expr) => {{
         use $crate::tools::__FastPrintNoSepDispatch as _;
         let mut iter = $crate::tools::__FastPrintNoSepIter(Some($iter));
@@ -294,6 +303,7 @@ macro_rules! fast_print {
     (@@assert_tag item) => {};
     (@@assert_tag it) => {};
     (@@assert_tag it1) => {};
+    (@@assert_tag itb) => {};
     (@@assert_tag bytes) => {};
     (@@assert_tag b) => {};
     (@@assert_tag it2d) => {};
