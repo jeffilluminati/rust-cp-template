@@ -128,7 +128,7 @@ def rustc_release_command(source_path, output_path, edition):
     return ["rustc", f"--edition={edition}", *RELEASE_RUSTC_FLAGS, source_path, "-o", output_path]
 
 
-def compile_rs(rs_file, edition):
+def compile_rs(rs_file, edition, emit_asm=False):
     rs_source = str(rs_file) + ".rs"
     result = subprocess.run(
         rustc_release_command(rs_source, str(rs_file), edition),
@@ -140,6 +140,30 @@ def compile_rs(rs_file, edition):
     if result.stderr:
         print(result.stderr, end="", file=sys.stderr)
     result.check_returncode()
+    if emit_asm:
+        asm_output = str(rs_file) + ".s"
+        asm_result = subprocess.run(
+            [
+                "rustc",
+                f"--edition={edition}",
+                *RELEASE_RUSTC_FLAGS,
+                "-C", "linker-plugin-lto",
+                "-C", "lto=fat",
+                "-C", "strip=symbols",
+                rs_source,
+                "--emit",
+                "asm",
+                "-o",
+                asm_output,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if asm_result.stdout:
+            print(asm_result.stdout, end="")
+        if asm_result.stderr:
+            print(asm_result.stderr, end="", file=sys.stderr)
+        asm_result.check_returncode()
 
 
 def run_with_timing(binary_path):
@@ -198,6 +222,7 @@ def resolve_bundler():
 def parse_args(argv):
     oj = DEFAULT_OJ
     binary = None
+    emit_asm = False
     i = 0
 
     while i < len(argv):
@@ -226,6 +251,8 @@ def parse_args(argv):
             if not oj:
                 print("Missing value for --judge")
                 exit(1)
+        elif arg in ("--asm", "-a"):
+            emit_asm = True
         elif arg.startswith("--"):
             print(f"Unknown option '{arg}'")
             exit(1)
@@ -236,7 +263,7 @@ def parse_args(argv):
             exit(1)
         i += 1
 
-    return binary, edition_for_oj(oj)
+    return binary, edition_for_oj(oj), emit_asm
 
 
 def main():
@@ -244,10 +271,10 @@ def main():
     check_valid_cargo_directory()
     bundler = resolve_bundler()
 
-    binary_arg, edition = parse_args(sys.argv[1:])
+    binary_arg, edition, emit_asm = parse_args(sys.argv[1:])
     binary = resolve_binary(binary_arg or "rust_codeforce_template")
     rs_file = bundle(bundler, binary, edition)
-    compile_rs(rs_file, edition)
+    compile_rs(rs_file, edition, emit_asm)
     run_with_timing(rs_file)
 
 if __name__ == "__main__":
