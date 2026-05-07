@@ -311,7 +311,7 @@ impl_complex_fold!(impl<T> Product product (Complex<T>) One one Mul mul where Ad
 
 impl<T: IterScan> IterScan for Complex<T> {
     type Output<'a> = Complex<<T as IterScan>::Output<'a>>;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         Some(Complex::new(
             <T as IterScan>::scan(iter)?,
             <T as IterScan>::scan(iter)?,

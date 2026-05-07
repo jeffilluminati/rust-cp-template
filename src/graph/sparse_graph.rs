@@ -234,7 +234,7 @@ where
     D: SparseGraphConstruction,
 {
     type Output<'a> = (SparseGraph<D>, Vec<<T as IterScan>::Output<'a>>);
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         let mut builder = SparseGraphBuilder::new_with_esize(self.vsize, self.esize);
         for _ in 0..self.esize {
             builder.add_edge(U::scan(iter)?, U::scan(iter)?, T::scan(iter)?);
@@ -273,7 +273,7 @@ where
     T: IterScan,
 {
     type Output<'a> = (UndirectedSparseGraph, Vec<<T as IterScan>::Output<'a>>);
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         UndirectedGraphScanner::<U, T>::new(self.vsize, self.vsize - 1).mscan(iter)
     }
 }

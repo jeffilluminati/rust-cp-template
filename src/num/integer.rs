@@ -559,7 +559,7 @@ where
     for<'a> T: IterScan<Output<'a> = T>,
 {
     type Output<'a> = Self;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         T::scan(iter).map(Self)
     }
 }
@@ -855,7 +855,7 @@ where
     for<'a> T: IterScan<Output<'a> = T>,
 {
     type Output<'a> = Self;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         T::scan(iter).map(Self)
     }
 }
@@ -1346,7 +1346,8 @@ mod tests {
                     assert_eq!(S::from(1 as $t).to_string(), "1");
                     assert_eq!(S::from_str("123").unwrap(), S::from(123));
                     assert_eq!(format!("{:?}", S::from(123)), "123");
-                    assert_eq!(S::scan(&mut ["123"].iter().map(|s| *s)).unwrap(), S::from(123));
+                    let mut src = "123".to_string();
+                    assert_eq!(S::scan(&mut ::std::iter::once(src.as_mut_str())).unwrap(), S::from(123));
                     assert_eq!(S::from(1) + S::from(2), S::from(3));
                     assert_eq!(S::from(1) + 2, S::from(3));
                     assert_eq!(S::from(3) - S::from(1), S::from(2));
@@ -1477,7 +1478,8 @@ mod tests {
                     assert_eq!(W::from(1 as $t).to_string(), "1");
                     assert_eq!(W::from_str("123").unwrap(), W::from(123));
                     assert_eq!(format!("{:?}", W::from(123)), "123");
-                    assert_eq!(W::scan(&mut ["123"].iter().map(|s| *s)).unwrap(), W::from(123));
+                    let mut src = "123".to_string();
+                    assert_eq!(W::scan(&mut ::std::iter::once(src.as_mut_str())).unwrap(), W::from(123));
                     assert_eq!(W::from(1) + W::from(2), W::from(3));
                     assert_eq!(W::from(1) + 2, W::from(3));
                     assert_eq!(W::from(3) - W::from(1), W::from(2));

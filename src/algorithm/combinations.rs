@@ -38,7 +38,7 @@ where
     /// # Example
     ///
     /// ```
-    /// # use competitive::algorithm::SliceCombinationsExt;
+    /// # use cp::algorithm::SliceCombinationsExt;
     /// let n = vec![1, 2, 3, 4];
     /// let mut p = Vec::new();
     /// let mut q = Vec::new();
@@ -80,14 +80,16 @@ where
     /// # Example
     ///
     /// ```
-    /// # use competitive::algorithm::SliceCombinationsExt;
+    /// # use cp::algorithm::SliceCombinationsExt;
     /// let n = vec![1, 2, 3, 4];
     /// let mut p = Vec::new();
     /// let mut q = Vec::new();
-    /// n.for_each_product(2, |v| p.push(v.to_vec()));
-    /// for x in n.iter().cloned() {
-    ///     for y in n.iter().cloned() {
-    ///         q.push(vec![x, y]);
+    /// n.for_each_permutations(2, |v| p.push(v.to_vec()));
+    /// for (i, x) in n.iter().cloned().enumerate() {
+    ///     for (j, y) in n.iter().cloned().enumerate() {
+    ///         if i != j {
+    ///             q.push(vec![x, y]);
+    ///         }
     ///     }
     /// }
     /// assert_eq!(p, q);
@@ -132,16 +134,14 @@ where
     /// # Example
     ///
     /// ```
-    /// # use competitive::algorithm::SliceCombinationsExt;
+    /// # use cp::algorithm::SliceCombinationsExt;
     /// let n = vec![1, 2, 3, 4];
     /// let mut p = Vec::new();
     /// let mut q = Vec::new();
-    /// n.for_each_permutations(2, |v| p.push(v.to_vec()));
+    /// n.for_each_combinations(2, |v| p.push(v.to_vec()));
     /// for (i, x) in n.iter().cloned().enumerate() {
-    ///     for (j, y) in n.iter().cloned().enumerate() {
-    ///         if i != j {
-    ///             q.push(vec![x, y]);
-    ///         }
+    ///     for y in n[i + 1..].iter().cloned() {
+    ///         q.push(vec![x, y]);
     ///     }
     /// }
     /// assert_eq!(p, q);
@@ -183,7 +183,7 @@ where
     /// # Example
     ///
     /// ```
-    /// # use competitive::algorithm::SliceCombinationsExt;
+    /// # use cp::algorithm::SliceCombinationsExt;
     /// let n = vec![1, 2, 3, 4];
     /// let mut p = Vec::new();
     /// let mut q = Vec::new();

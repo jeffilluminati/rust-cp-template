@@ -2,7 +2,7 @@
 ///
 /// # Example
 /// ```
-/// # use competitive::mlambda;
+/// # use cp::mlambda;
 /// let graph: Vec<Vec<usize>> = vec![vec![1, 2], vec![2], vec![]];
 /// let mut deq = std::collections::VecDeque::new();
 /// let mut dist: Vec<usize> = vec![!0; 3];

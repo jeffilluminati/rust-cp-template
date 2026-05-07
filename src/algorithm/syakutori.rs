@@ -7,7 +7,7 @@
 /// - show: call n times for l in 0..n, with rightmost r
 ///
 /// ```
-/// # use competitive::syakutori;
+/// # use cp::syakutori;
 /// let (a, w) = ([1, 2, 3, 4], 6);
 /// let (mut ans, mut acc) = (0, 0);
 /// syakutori!(

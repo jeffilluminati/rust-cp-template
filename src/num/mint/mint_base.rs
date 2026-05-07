@@ -287,7 +287,7 @@ where
 {
     type Output<'a> = Self;
     #[inline]
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         iter.next()?.parse::<MInt<M>>().ok()
     }
 }

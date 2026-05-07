@@ -382,7 +382,7 @@ impl One for QuadDouble {
 
 impl IterScan for QuadDouble {
     type Output<'a> = Self;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         iter.next().and_then(|s| s.parse().ok())
     }
 }

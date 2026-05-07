@@ -12,7 +12,7 @@
 /// incr and decr can be omitted, if simultaneous
 ///
 /// ```
-/// # use competitive::mo_algorithm;
+/// # use cp::mo_algorithm;
 /// let (a, lr) = ([1, 2, 3], [(0, 1), (0, 2), (1, 3)]);
 /// let (mut ans, mut acc) = (0, 0);
 /// mo_algorithm!(

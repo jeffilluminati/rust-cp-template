@@ -38,9 +38,9 @@ pub trait AssociatedValue {
 /// # Examples
 ///
 /// ```
-/// use competitive::tools::AssociatedValue;
+/// use cp::tools::AssociatedValue;
 /// enum X {}
-/// competitive::impl_assoc_value!(X, usize, 1);
+/// cp::impl_assoc_value!(X, usize, 1);
 /// assert_eq!(X::get(), 1);
 /// X::set(10);
 /// assert_eq!(X::get(), 10);
@@ -49,9 +49,9 @@ pub trait AssociatedValue {
 /// init with `Default::default()`
 ///
 /// ```
-/// use competitive::tools::AssociatedValue;
+/// use cp::tools::AssociatedValue;
 /// enum X {}
-/// competitive::impl_assoc_value!(X, usize);
+/// cp::impl_assoc_value!(X, usize);
 /// assert_eq!(X::get(), Default::default());
 /// ```
 #[macro_export]

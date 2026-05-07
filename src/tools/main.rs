@@ -47,11 +47,11 @@ mod main_macros {
             macro_rules! dg { ($dol($dol t:tt)*) => {} }
         };
         (@normal ($dol:tt)) => {
-            let __in_buf = $crate::tools::read_stdin_all_unchecked();
+            let mut __in_buf = $crate::tools::read_stdin_all_unchecked();
             #[allow(unused_mut,unused_variables)]
-            let mut __scanner = $crate::tools::Scanner::new(&__in_buf);
+            let mut __scanner = $crate::tools::Scanner::new(__in_buf.as_mut_str());
             #[allow(unused_imports)]
-            use $crate::tools::{Byte1, Bytes, BytesWithBase, Chars, CharsWithBase, Usize1};
+            use $crate::tools::{Byte1, Bytes, BytesWithBase, Chars, CharsWithBase, Str, Usize1};
             #[allow(unused_macros)]
             macro_rules! sc { ($dol($dol t:tt)*) => { $dol crate::scan!(__scanner, $dol($dol t)*) } }
             #[allow(unused_macros)]
@@ -59,14 +59,14 @@ mod main_macros {
         };
         (@interactive ($dol:tt)) => {
             #[allow(unused_imports)]
-            use $crate::tools::{Byte1, Bytes, BytesWithBase, Chars, CharsWithBase, Usize1};
+            use $crate::tools::{Byte1, Bytes, BytesWithBase, Chars, CharsWithBase, Str, Usize1};
             #[allow(unused_macros)]
             /// Scan a line, and previous line will be truncated in the next call.
             macro_rules! scln {
                 ($dol($dol t:tt)*) => {
-                    let __in_buf = $crate::tools::read_stdin_line();
+                    let mut __in_buf = $crate::tools::read_stdin_line();
                     #[allow(unused_mut,unused_variables)]
-                    let mut __scanner = $crate::tools::Scanner::new(&__in_buf);
+                    let mut __scanner = $crate::tools::Scanner::new(__in_buf.as_mut_str());
                     $dol crate::scan!(__scanner, $dol($dol t)*)
                 }
             }
@@ -74,9 +74,9 @@ mod main_macros {
             /// Scan a line, and previous line will be truncated in the next call.
             macro_rules! svln {
                 ($dol($dol t:tt)*) => {{
-                    let __in_buf = $crate::tools::read_stdin_line();
+                    let mut __in_buf = $crate::tools::read_stdin_line();
                     #[allow(unused_mut,unused_variables)]
-                    let mut __scanner = $crate::tools::Scanner::new(&__in_buf);
+                    let mut __scanner = $crate::tools::Scanner::new(__in_buf.as_mut_str());
                     $dol crate::scan_value!(__scanner, $dol($dol t)*)
                 }}
             }

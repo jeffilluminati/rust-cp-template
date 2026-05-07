@@ -3,7 +3,7 @@
 /// # Example
 /// default version
 /// ```
-/// # use competitive::crecurse;
+/// # use cp::crecurse;
 /// let mut res = 0usize;
 /// let coeff = 3usize;
 /// crecurse!(
@@ -25,7 +25,7 @@
 ///
 /// unsafe version (automatically capture everything)
 /// ```
-/// # use competitive::crecurse;
+/// # use cp::crecurse;
 /// let mut res = 0usize;
 /// let coeff = 3usize;
 /// crecurse!(
@@ -43,7 +43,7 @@
 ///
 /// no overhead version (semi-automatically capture everything)
 /// ```
-/// # use competitive::crecurse;
+/// # use cp::crecurse;
 /// let mut res = 0usize;
 /// let coeff = 3usize;
 /// crecurse!(
@@ -179,7 +179,7 @@ macro_rules! crecurse {
 ///
 /// # Example
 /// ```
-/// # use competitive::memorize;
+/// # use cp::memorize;
 /// memorize!(
 ///     fn comb(n: usize, r: usize) -> usize {
 ///         if r > n {

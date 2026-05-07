@@ -295,7 +295,7 @@ macro_rules! impl_ord_float {
         }
         impl IterScan for $n {
             type Output<'a> = Self;
-            fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+            fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
                 <$t as IterScan>::scan(iter).map(Self)
             }
         }

@@ -1,6 +1,8 @@
 use std::{
     iter::{from_fn, repeat_with, FromIterator},
     marker::PhantomData,
+    slice,
+    str,
 };
 
 pub fn read_stdin_all() -> String {
@@ -43,23 +45,154 @@ pub fn read_stdin_line() -> String {
 }
 pub trait IterScan: Sized {
     type Output<'a>;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>>;
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>>;
 }
 pub trait MarkedIterScan: Sized {
     type Output<'a>;
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>>;
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>>;
 }
+
+#[derive(Debug)]
+pub struct SplitAsciiWhitespaceMut<'a> {
+    ptr: *mut u8,
+    len: usize,
+    _marker: PhantomData<&'a mut str>,
+}
+
+impl<'a> SplitAsciiWhitespaceMut<'a> {
+    pub fn new(s: &'a mut str) -> Self {
+        let bytes = unsafe { s.as_bytes_mut() };
+        Self {
+            ptr: bytes.as_mut_ptr(),
+            len: bytes.len(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a> Iterator for SplitAsciiWhitespaceMut<'a> {
+    type Item = &'a mut str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            let bytes = slice::from_raw_parts_mut(self.ptr, self.len);
+            let start = bytes.iter().position(|b| !b.is_ascii_whitespace())?;
+            let end = bytes[start..]
+                .iter()
+                .position(u8::is_ascii_whitespace)
+                .map_or(self.len, |offset| start + offset);
+            let token_ptr = self.ptr.add(start);
+            let token_len = end - start;
+            self.ptr = self.ptr.add(end);
+            self.len -= end;
+            Some(str::from_utf8_unchecked_mut(slice::from_raw_parts_mut(
+                token_ptr, token_len,
+            )))
+        }
+    }
+}
+
+#[derive(Debug)]
+struct SplitMut<'a, P> {
+    ptr: *mut u8,
+    len: usize,
+    pat: P,
+    emit_trailing_empty: bool,
+    finished: bool,
+    _marker: PhantomData<&'a mut str>,
+}
+
+impl<'a, P> SplitMut<'a, P> {
+    fn from_str(s: &'a mut str, pat: P) -> Self {
+        let bytes = unsafe { s.as_bytes_mut() };
+        Self {
+            ptr: bytes.as_mut_ptr(),
+            len: bytes.len(),
+            pat,
+            emit_trailing_empty: false,
+            finished: false,
+            _marker: PhantomData,
+        }
+    }
+
+    unsafe fn empty_at_ptr(&self) -> &'a mut str {
+        str::from_utf8_unchecked_mut(slice::from_raw_parts_mut(self.ptr, 0))
+    }
+
+    unsafe fn take_prefix(&mut self, prefix_len: usize, pat_len: usize) -> &'a mut str {
+        let token = str::from_utf8_unchecked_mut(slice::from_raw_parts_mut(self.ptr, prefix_len));
+        self.ptr = self.ptr.add(prefix_len + pat_len);
+        self.len -= prefix_len + pat_len;
+        if self.len == 0 {
+            self.emit_trailing_empty = true;
+        }
+        token
+    }
+
+    unsafe fn take_rest(&mut self) -> &'a mut str {
+        self.finished = true;
+        str::from_utf8_unchecked_mut(slice::from_raw_parts_mut(self.ptr, self.len))
+    }
+}
+
+impl<'a> Iterator for SplitMut<'a, char> {
+    type Item = &'a mut str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+        if self.emit_trailing_empty {
+            self.emit_trailing_empty = false;
+            self.finished = true;
+            return Some(unsafe { self.empty_at_ptr() });
+        }
+        unsafe {
+            let haystack = str::from_utf8_unchecked(slice::from_raw_parts(self.ptr, self.len));
+            if let Some(idx) = haystack.find(self.pat) {
+                Some(self.take_prefix(idx, self.pat.len_utf8()))
+            } else {
+                Some(self.take_rest())
+            }
+        }
+    }
+}
+
+impl<'a, 'p> Iterator for SplitMut<'a, &'p str> {
+    type Item = &'a mut str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+        if self.emit_trailing_empty {
+            self.emit_trailing_empty = false;
+            self.finished = true;
+            return Some(unsafe { self.empty_at_ptr() });
+        }
+        assert!(!self.pat.is_empty(), "empty split pattern is not supported");
+        unsafe {
+            let haystack = str::from_utf8_unchecked(slice::from_raw_parts(self.ptr, self.len));
+            if let Some(idx) = haystack.find(self.pat) {
+                Some(self.take_prefix(idx, self.pat.len()))
+            } else {
+                Some(self.take_rest())
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
-pub struct Scanner<'a, I: Iterator<Item = &'a str> = std::str::SplitAsciiWhitespace<'a>> {
+pub struct Scanner<'a, I: Iterator<Item = &'a mut str> = SplitAsciiWhitespaceMut<'a>> {
     iter: I,
 }
 impl<'a> Scanner<'a> {
-    pub fn new(s: &'a str) -> Self {
-        let iter = s.split_ascii_whitespace();
+    pub fn new(s: &'a mut str) -> Self {
+        let iter = SplitAsciiWhitespaceMut::new(s);
         Self { iter }
     }
 }
-impl<'a, I: Iterator<Item = &'a str>> Scanner<'a, I> {
+impl<'a, I: Iterator<Item = &'a mut str>> Scanner<'a, I> {
     pub fn new_from_iter(iter: I) -> Self {
         Self { iter }
     }
@@ -99,7 +232,7 @@ macro_rules! impl_iter_scan {
     ($($t:ty)*) => {$(
         impl IterScan for $t {
             type Output<'a> = Self;
-            fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self> {
+            fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self> {
                 iter.next()?.parse::<$t>().ok()
             }
         })*
@@ -111,7 +244,7 @@ macro_rules! impl_iter_scan_tuple {
     (@impl $($T:ident)*) => {
         impl<$($T: IterScan),*> IterScan for ($($T,)*) {
             type Output<'a> = ($(<$T as IterScan>::Output<'a>,)*);
-            fn scan<'a, It: Iterator<Item = &'a str>>(_iter: &mut It) -> Option<Self::Output<'a>> {
+            fn scan<'a, It: Iterator<Item = &'a mut str>>(_iter: &mut It) -> Option<Self::Output<'a>> {
                 Some(($(<$T as IterScan>::scan(_iter)?,)*))
             }
         }
@@ -129,13 +262,13 @@ macro_rules! impl_iter_scan_tuple {
 }
 impl_iter_scan_tuple!(A B C D E F G H I J K);
 
-pub struct ScannerIter<'a, 'b, I: Iterator<Item = &'a str>, T> {
+pub struct ScannerIter<'a, 'b, I: Iterator<Item = &'a mut str>, T> {
     inner: &'b mut Scanner<'a, I>,
     _marker: std::marker::PhantomData<fn() -> T>,
 }
 impl<'a, I, T> Iterator for ScannerIter<'a, '_, I, T>
 where
-    I: Iterator<Item = &'a str>,
+    I: Iterator<Item = &'a mut str>,
     T: IterScan,
 {
     type Item = <T as IterScan>::Output<'a>;
@@ -219,12 +352,12 @@ macro_rules! scan {
 ///
 /// # Example
 /// ```rust
-/// # use competitive::{define_enum_scan, tools::{CharsWithBase, IterScan, Scanner, Usize1}};
+/// # use cp::{define_enum_scan, tools::{CharsWithBase, IterScan, Scanner, Usize1}};
 /// define_enum_scan! {
 ///   enum Query: u8 {
 ///     0 => Noop,
 ///     1 => Args { i: Usize1, s: char },
-///     9 => Complex { n: usize, c: [(usize, Vec<usize> = CharsWithBase('a')); n] },
+///     9 => Complex { n: usize, c: [(usize, Vec<u8> = CharsWithBase('a')); n] },
 ///   }
 /// }
 /// ```
@@ -279,7 +412,7 @@ macro_rules! define_enum_scan {
         }
         impl<'__scan> IterScan for $T<'__scan> {
             type Output<'a> = $T<'a>;
-            fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+            fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
                 let tag = $crate::define_enum_scan!(@tag_expr $d, iter);
                 match tag {
                     $(
@@ -317,7 +450,7 @@ macro_rules! define_enum_scan {
 pub enum Usize1 {}
 impl IterScan for Usize1 {
     type Output<'a> = usize;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         <usize as IterScan>::scan(iter)?.checked_sub(1)
     }
 }
@@ -325,15 +458,23 @@ impl IterScan for Usize1 {
 pub struct CharWithBase(pub char);
 impl MarkedIterScan for CharWithBase {
     type Output<'a> = u8;
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         Some(<char as IterScan>::scan(iter)? as u8 - self.0 as u8)
+    }
+}
+#[derive(Debug, Copy, Clone)]
+pub enum Str {}
+impl IterScan for Str {
+    type Output<'a> = &'a mut str;
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+        iter.next()
     }
 }
 #[derive(Debug, Copy, Clone)]
 pub enum Chars {}
 impl IterScan for Chars {
     type Output<'a> = Vec<char>;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         Some(iter.next()?.chars().collect())
     }
 }
@@ -341,7 +482,7 @@ impl IterScan for Chars {
 pub struct CharsWithBase(pub char);
 impl MarkedIterScan for CharsWithBase {
     type Output<'a> = Vec<u8>;
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         Some(
             iter.next()?
                 .chars()
@@ -354,7 +495,7 @@ impl MarkedIterScan for CharsWithBase {
 pub enum Byte1 {}
 impl IterScan for Byte1 {
     type Output<'a> = u8;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         let bytes = iter.next()?.as_bytes();
         assert_eq!(bytes.len(), 1);
         Some(bytes[0])
@@ -364,23 +505,23 @@ impl IterScan for Byte1 {
 pub struct ByteWithBase(pub u8);
 impl MarkedIterScan for ByteWithBase {
     type Output<'a> = u8;
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         Some(<char as IterScan>::scan(iter)? as u8 - self.0)
     }
 }
 #[derive(Debug, Copy, Clone)]
 pub enum Bytes {}
 impl IterScan for Bytes {
-    type Output<'a> = &'a [u8];
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
-        Some(iter.next()?.as_bytes())
+    type Output<'a> = &'a mut [u8];
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+        unsafe { Some(iter.next()?.as_bytes_mut()) }
     }
 }
 #[derive(Debug, Copy, Clone)]
 pub struct BytesWithBase(pub u8);
 impl MarkedIterScan for BytesWithBase {
     type Output<'a> = Vec<u8>;
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         Some(iter.next()?.bytes().map(|c| c - self.0).collect())
     }
 }
@@ -431,7 +572,7 @@ where
     B: IterScanCollect<T>,
 {
     type Output<'a> = <B as IterScanCollect<T>>::Output<'a>;
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         repeat_with(|| <T as IterScan>::scan(iter))
             .take(self.size)
             .collect()
@@ -451,7 +592,7 @@ where
     B: IterScanCollect<T>,
 {
     type Output<'a> = <B as IterScanCollect<T>>::Output<'a>;
-    fn scan<'a, I: Iterator<Item = &'a str>>(iter: &mut I) -> Option<Self::Output<'a>> {
+    fn scan<'a, I: Iterator<Item = &'a mut str>>(iter: &mut I) -> Option<Self::Output<'a>> {
         let size = usize::scan(iter)?;
         repeat_with(|| <T as IterScan>::scan(iter))
             .take(size)
@@ -482,8 +623,8 @@ where
     T: IterScan,
 {
     type Output<'a> = Vec<<T as IterScan>::Output<'a>>;
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
-        let mut iter = iter.next()?.split(self.pat);
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+        let mut iter = SplitMut::from_str(iter.next()?, self.pat);
         Some(from_fn(|| <T as IterScan>::scan(&mut iter)).collect())
     }
 }
@@ -493,17 +634,17 @@ where
 {
     type Output<'a> = Vec<<T as IterScan>::Output<'a>>;
 
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
-        let mut iter = iter.next()?.split(self.pat);
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+        let mut iter = SplitMut::from_str(iter.next()?, self.pat);
         Some(from_fn(|| <T as IterScan>::scan(&mut iter)).collect())
     }
 }
 impl<T, F> MarkedIterScan for F
 where
-    F: Fn(&str) -> Option<T>,
+    F: Fn(&mut str) -> Option<T>,
 {
     type Output<'a> = T;
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         self(iter.next()?)
     }
 }
@@ -514,7 +655,8 @@ mod tests {
 
     #[test]
     fn test_scan() {
-        let mut s = Scanner::new("1 2 3 a 1 2 1 1 1.1 2 3");
+        let mut src = "1 2 3 a 1 2 1 1 1.1 2 3".to_string();
+        let mut s = Scanner::new(src.as_mut_str());
         scan!(s, x, y: char, z: Usize1, a: @CharWithBase('a'), b: [usize; 2], c: (u8, @CharWithBase('0')), d: @Splitted::<usize, _>::new('.'), e: [usize; const 2]);
         assert_eq!(x, 1);
         assert_eq!(y, '2');
@@ -525,39 +667,79 @@ mod tests {
         assert_eq!(d, vec![1, 1]);
         assert_eq!(e, [2, 3]);
 
-        scan!(src = "12 34", c: Vec<u8> = CharsWithBase('0'), d: [Vec<u8> = CharsWithBase('0'); 1]);
+        let mut src = "12 34".to_string();
+        scan!(src = src.as_mut_str(), c: Vec<u8> = CharsWithBase('0'), d: [Vec<u8> = CharsWithBase('0'); 1]);
         assert_eq!(c, vec![1, 2]);
         assert_eq!(d, vec![vec![3, 4]]);
 
-        scan!(src = "1", x);
+        let mut src = "1".to_string();
+        scan!(src = src.as_mut_str(), x);
         assert_eq!(x, 1);
-        assert_eq!(scan_value!(src = "1", usize), 1);
+        let mut src = "1".to_string();
+        assert_eq!(scan_value!(src = src.as_mut_str(), usize), 1);
 
-        scan!(iter = "1".split_ascii_whitespace(), x);
+        let mut src = "1".to_string();
+        scan!(iter = SplitAsciiWhitespaceMut::new(src.as_mut_str()), x);
         assert_eq!(x, 1);
-        assert_eq!(scan_value!(iter = "1".split_ascii_whitespace(), usize), 1);
+        let mut src = "1".to_string();
+        assert_eq!(
+            scan_value!(iter = SplitAsciiWhitespaceMut::new(src.as_mut_str()), usize),
+            1
+        );
     }
 
     #[test]
     fn test_zero_copy_bytes_abstractions() {
-        let src = "ab cd ef";
-        let mut s = Scanner::new(src);
-        let bytes: Vec<&[u8]> = s.mscan(Collect::<Bytes>::new(3));
+        let mut src = "ab cd ef".to_string();
+        let src_ptr = src.as_ptr();
+        let mut s = Scanner::new(src.as_mut_str());
+        let bytes: Vec<&mut [u8]> = s.mscan(Collect::<Bytes>::new(3));
         assert_eq!(
             bytes,
             vec![b"ab".as_slice(), b"cd".as_slice(), b"ef".as_slice()]
         );
-        assert_eq!(bytes[0].as_ptr(), src.as_ptr());
+        assert_eq!(bytes[0].as_ptr(), src_ptr);
 
-        let mut s = Scanner::new("2 ab cd");
-        let bytes: Vec<&[u8]> = s.scan::<SizedCollect<Bytes>>();
+        let mut src = "2 ab cd".to_string();
+        let mut s = Scanner::new(src.as_mut_str());
+        let bytes: Vec<&mut [u8]> = s.scan::<SizedCollect<Bytes>>();
         assert_eq!(bytes, vec![b"ab".as_slice(), b"cd".as_slice()]);
 
-        let src = "ab,cd";
-        let mut s = Scanner::new(src);
-        let bytes: Vec<&[u8]> = s.mscan(Splitted::<Bytes, _>::new(','));
+        let mut src = "ab,cd".to_string();
+        let src_ptr = src.as_ptr();
+        let mut s = Scanner::new(src.as_mut_str());
+        let bytes: Vec<&mut [u8]> = s.mscan(Splitted::<Bytes, _>::new(','));
         assert_eq!(bytes, vec![b"ab".as_slice(), b"cd".as_slice()]);
-        assert_eq!(bytes[0].as_ptr(), src.as_ptr());
+        assert_eq!(bytes[0].as_ptr(), src_ptr);
+    }
+
+    #[test]
+    fn test_zero_copy_str_abstractions() {
+        let mut src = "ab cd ef".to_string();
+        let src_ptr = src.as_ptr();
+        let mut s = Scanner::new(src.as_mut_str());
+        let mut words: Vec<&mut str> = s.mscan(Collect::<Str>::new(3));
+        assert_eq!(words, vec!["ab", "cd", "ef"]);
+        assert_eq!(words[0].as_ptr(), src_ptr);
+
+        words[0].make_ascii_uppercase();
+        words[2].make_ascii_uppercase();
+        assert_eq!(src, "AB cd EF");
+
+        let mut src = "aa,bb".to_string();
+        let mut s = Scanner::new(src.as_mut_str());
+        let mut words: Vec<&mut str> = s.mscan(Splitted::<Str, _>::new(','));
+        words[1].make_ascii_uppercase();
+        assert_eq!(src, "aa,BB");
+
+        let mut src = "x".to_string();
+        let mut s = Scanner::new(src.as_mut_str());
+        let len = s.mscan(|token: &mut str| {
+            token.make_ascii_uppercase();
+            Some(token.len())
+        });
+        assert_eq!(len, 1);
+        assert_eq!(src, "X");
     }
 
     #[test]
@@ -575,7 +757,8 @@ mod tests {
             }
         }
 
-        let mut s = Scanner::new("0   1 2 a  9 2 3 ab 2 ab");
+        let mut src = "0   1 2 a  9 2 3 ab 2 ab".to_string();
+        let mut s = Scanner::new(src.as_mut_str());
         scan!(s, q1: Query, q2: Query, q3: Query);
         match q1 {
             Query::Noop => {}
@@ -596,13 +779,14 @@ mod tests {
             _ => panic!("unexpected"),
         }
 
-        let src = "0 ab";
-        let mut s = Scanner::new(src);
+        let mut src = "0 ab".to_string();
+        let src_ptr = src.as_ptr();
+        let mut s = Scanner::new(src.as_mut_str());
         let q = s.scan::<BorrowQuery>();
         match q {
             BorrowQuery::Data { s } => {
                 assert_eq!(s, b"ab");
-                assert_eq!(s.as_ptr(), unsafe { src.as_ptr().add(2) });
+                assert_eq!(s.as_ptr(), unsafe { src_ptr.add(2) });
             }
             _ => panic!("unexpected"),
         }

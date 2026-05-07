@@ -74,7 +74,7 @@ where
     T: IterScan,
 {
     type Output<'a> = (AdjacencyListGraph, Vec<<T as IterScan>::Output<'a>>);
-    fn mscan<'a, I: Iterator<Item = &'a str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
+    fn mscan<'a, I: Iterator<Item = &'a mut str>>(self, iter: &mut I) -> Option<Self::Output<'a>> {
         let mut graph = AdjacencyListGraph::new(self.vsize);
         let mut rest = Vec::with_capacity(self.esize);
         for _ in 0..self.esize {
