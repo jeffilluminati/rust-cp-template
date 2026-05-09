@@ -2,10 +2,12 @@ use std::{
     ffi::{c_int, c_void},
     fs::File,
     io::{stdout, BufWriter, Read, StdoutLock, Write},
-    os::fd::FromRawFd,
     ptr,
     str::FromStr,
 };
+
+#[cfg(unix)]
+use std::os::unix::io::FromRawFd;
 
 extern "C" {
     fn mmap(
